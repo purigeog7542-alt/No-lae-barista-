@@ -1,92 +1,11 @@
 // ==========================================
-// 1. GRINDERS DATABASE & LOGIC ENGINE (Built-in)
+// IMPORT MODULES & DATABASES
 // ==========================================
-const GRINDERS_DATABASE = {
-  "timemore_bricks_01s": {
-    id: "timemore_bricks_01s",
-    name: "Timemore Bricks 01S",
-    type: "Electric Single-Dose",
-    burr: "40mm S2C040 Conical Burr (55-58 HRC)",
-    totalClicks: 150,
-    retention: "0.1 - 0.2g (Fines Knocker)",
-    workflow: [
-      "ใช้ RDT สเปรย์พรมน้ำ 1-2 ละอองบนเมล็ดกาแฟก่อนลง Hopper เพื่อลดไฟฟ้าสถิต",
-      "กดปุ่มเปิดเครื่องก่อนค่อยเปิดฝาเทเมล็ดกาแฟลงไป",
-      "เมื่อบดเสร็จ ให้หมุน Fines Knocker เพื่อเคาะผงกาแฟค้างช็อตให้ออกหมด"
-    ],
-    baseRanges: {
-      espresso: { min: 1, max: 45, default: 25 },
-      moka_pot: { min: 15, max: 60, default: 35 },
-      pour_over: { min: 75, max: 120, default: 95 },
-      french_press: { min: 127, max: 145, default: 135 }
-    },
-    limitations: {
-      lightRoastEspresso: "คำเตือน: Bricks 01S ใช้เฟือง Conical S2C040 อาจมีแรงบดไม่พอสำหรับเมล็ดคั่วอ่อนมากในระดับ Espresso"
-    }
-  },
-  "timemore_sculptor_01s": {
-    id: "timemore_sculptor_01s",
-    name: "Timemore Sculptor 01S",
-    type: "Electric Flat Burr",
-    baseRanges: {
-      espresso: { min: 1, max: 5, default: 2 },
-      pour_over: { min: 6, max: 12, default: 8 }
-    },
-    workflow: ["ปรับ RPM ตามโปรไฟล์รสชาติ", "ใช้ Rotary Knocker เคลียร์ผง"]
-  },
-  "mischief_m40": {
-    id: "mischief_m40",
-    name: "Mischief M40 (Red Click)",
-    type: "Manual Hand Grinder",
-    baseRanges: {
-      espresso: { min: 10, max: 30, default: 18 },
-      pour_over: { min: 40, max: 70, default: 55 }
-    },
-    workflow: ["ใช้ RDT พรมน้ำก่อนบด", "หมุนด้วยรอบคงที่"]
-  }
-};
-
-function calculateGrindSetting({ grinderId, brewMethod, roastLevel = 'medium', processType = 'washed' }) {
-  const grinder = GRINDERS_DATABASE[grinderId];
-  if (!grinder) return { error: "ไม่พบข้อมูลเครื่องบดที่ระบุ" };
-
-  const targetMethod = (brewMethod === 'cafelat_robot') ? 'espresso' : brewMethod;
-  const base = grinder.baseRanges[targetMethod];
-  if (!base) return { error: "เครื่องบดนี้ไม่รองรับการชงประเภทนี้" };
-
-  let calculatedClick = base.default;
-  let adjustmentNotes = [];
-
-  if (grinderId === 'timemore_bricks_01s') {
-    if (roastLevel === 'light') {
-      calculatedClick -= 4;
-      adjustmentNotes.push("คั่วอ่อน (Light Roast): ปรับละเอียดขึ้น 4 Clicks");
-    } else if (roastLevel === 'medium_light') {
-      calculatedClick -= 2;
-    } else if (roastLevel === 'dark') {
-      calculatedClick += 5;
-      adjustmentNotes.push("คั่วเข้ม (Dark Roast): ปรับหยาบขึ้น 5 Clicks");
-    }
-  }
-
-  let warningMessage = null;
-  if (grinderId === 'timemore_bricks_01s' && targetMethod === 'espresso' && roastLevel === 'light') {
-    warningMessage = grinder.limitations.lightRoastEspresso;
-  }
-
-  return {
-    grinderName: grinder.name,
-    targetMethod: brewMethod,
-    finalSettingClick: Math.max(base.min, Math.min(base.max, calculatedClick)),
-    recommendedRange: `${base.min} - ${base.max} Clicks`,
-    workflow: grinder.workflow,
-    adjustmentNotes: adjustmentNotes,
-    warning: warningMessage
-  };
-}
+import { GRINDERS_DATABASE } from './grindersDatabase.js';
+import { calculateGrindSetting } from './baristaLogicEngine.js';
 
 // ==========================================
-// 2. SUPABASE CONFIGURATION
+// SUPABASE CONFIGURATION
 // ==========================================
 const SUPABASE_URL = 'https://punvjllkjbeziycbcgxw.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB1bnZqbGxramJlaml5Y2JjZ3h3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQwNjIwNjcsImV4cCI6MjEwOTYzODA2N30.Sn8yDLnO2yn9kFhh9ftHsb_SfWZNr4GKLfOb56dlzn4';
@@ -97,7 +16,7 @@ if (window.supabase) {
 }
 
 // ==========================================
-// 3. WEATHER & GPS AUTO-FETCH (สภาพอากาศบ้านนอแล)
+// 1. WEATHER & GPS AUTO-FETCH (สภาพอากาศบ้านนอแล)
 // ==========================================
 async function fetchWeatherByLocation() {
     const statusEl = document.getElementById('locationStatus');
@@ -134,7 +53,7 @@ async function fetchWeatherByLocation() {
 }
 
 // ==========================================
-// 4. DYNAMIC GRIND CALCULATION ENGINE
+// 2. DYNAMIC GRIND CALCULATION ENGINE
 // ==========================================
 function calculateGrind() {
     const grinderSelectEl = document.getElementById('grinderSelect');
@@ -145,6 +64,7 @@ function calculateGrind() {
     const roastProfile = roastProfileEl ? roastProfileEl.value : 'medium';
     const roastDateVal = roastDateEl ? roastDateEl.value : '';
     
+    // คำนวณอายุเมล็ดกาแฟ
     let ageDays = 7;
     if (roastDateVal) {
         const roastDate = new Date(roastDateVal);
@@ -152,6 +72,7 @@ function calculateGrind() {
         ageDays = Math.floor((today - roastDate) / (1000 * 60 * 60 * 24));
     }
 
+    // เรียกใช้ Engine คำนวณเบอร์บดจาก baristaLogicEngine.js โดยตรง
     const result = calculateGrindSetting({
         grinderId: grinderId,
         brewMethod: 'espresso',
@@ -167,14 +88,16 @@ function calculateGrind() {
     let finalSettingClick = result.finalSettingClick;
     let alertMsg = `✨ เมล็ดอยู่ในช่วงเวลาสกัดที่เหมาะสม (${ageDays} วันหลังคั่ว)`;
 
+    // ปรับชดเชยตามอายุเมล็ดกาแฟ (Degassing Effect)
     if (ageDays < 5) {
         finalSettingClick += 3;
-        alertMsg = `⚠️ เมล็ดคั่วใหม่ (${ageDays} วัน) แก๊สยังเยอะ ควรบดหยาบขึ้น`;
+        alertMsg = `⚠️ เมล็ดคั่วใหม่ (${ageDays} วัน) แก๊สยังเยอะ ควรบดหยาบขึ้นป้องกัน Channelling`;
     } else if (ageDays > 30) {
         finalSettingClick = Math.max(1, finalSettingClick - 2);
-        alertMsg = `ℹ️ เมล็ดคั่วมาแล้ว ${ageDays} วัน เริ่มเก่า ปรับเบอร์บดละเอียดขึ้น`;
+        alertMsg = `ℹ️ เมล็ดคั่วมาแล้ว ${ageDays} วัน เริ่มเก่า ชดเชยโดยการปรับเบอร์บดละเอียดขึ้น`;
     }
 
+    // แสดงผลบนหน้าเว็บ
     const grindNumEl = document.getElementById('recommendGrind');
     const adjustReasonEl = document.getElementById('adjustReason');
     const extraAlertEl = document.getElementById('extraAlert');
@@ -182,6 +105,7 @@ function calculateGrind() {
     if (grindNumEl) grindNumEl.innerText = finalSettingClick;
     if (adjustReasonEl) adjustReasonEl.innerText = `อิงตามเครื่องบด ${result.grinderName}, คั่ว ${roastProfile} และอายุเมล็ด ${ageDays} วัน`;
 
+    // ดึง Workflow และข้อควรระวังมาแสดงผล
     let workflowHtml = "";
     if (result.workflow && Array.isArray(result.workflow)) {
         workflowHtml = result.workflow.map(w => `<div>• ${w}</div>`).join('');
@@ -200,7 +124,7 @@ function calculateGrind() {
 }
 
 // ==========================================
-// 5. SUPABASE LOG STORAGE (บันทึกผลการชง)
+// 3. SUPABASE LOG STORAGE (บันทึกผลการชง)
 // ==========================================
 async function saveLogToSupabase() {
     if (!supabaseClient) {
@@ -230,6 +154,7 @@ async function saveLogToSupabase() {
         if (error) throw error;
         alert('✅ บันทึกผลการสกัดลงฐานข้อมูล Supabase สำเร็จ!');
         
+        // เคลียร์ฟอร์มผลสกัดจริงหลังบันทึก
         document.getElementById('actualYieldG').value = '';
         document.getElementById('preInfusionSec').value = '';
         document.getElementById('shotTimeSec').value = '';
@@ -241,9 +166,10 @@ async function saveLogToSupabase() {
 }
 
 // ==========================================
-// 6. EVENT LISTENERS & INITIALIZATION
+// 4. EVENT LISTENERS & INITIALIZATION
 // ==========================================
 window.addEventListener('DOMContentLoaded', () => {
+    // ตั้งค่าวันที่คั่วเริ่มต้นเป็น 7 วันที่แล้ว
     const defaultDate = new Date();
     defaultDate.setDate(defaultDate.getDate() - 7);
     const roastDateEl = document.getElementById('roastDate');
@@ -251,6 +177,7 @@ window.addEventListener('DOMContentLoaded', () => {
         roastDateEl.value = defaultDate.toISOString().split('T')[0];
     }
 
+    // ผูก Event ให้ฟอร์มคำนวณอัตโนมัติเมื่อมีการเปลี่ยนแปลงค่า
     ['grinderSelect', 'roastProfile', 'roastDate'].forEach(id => {
         const el = document.getElementById(id);
         if (el) {
@@ -259,16 +186,19 @@ window.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    // ผูก Event ให้ปุ่มบันทึกทำงานอย่างถูกต้องในระบบ Module
     const saveBtn = document.getElementById('saveLogBtn');
     if (saveBtn) {
         saveBtn.addEventListener('click', saveLogToSupabase);
     }
 
+    // ผูกปุ่มอัปเดตพิกัด GPS
     const updateGpsBtn = document.getElementById('updateGpsBtn');
     if (updateGpsBtn) {
         updateGpsBtn.addEventListener('click', fetchWeatherByLocation);
     }
 
+    // รันการคำนวณและดึงอากาศเมื่อเปิดหน้าเว็บ
     calculateGrind();
     fetchWeatherByLocation();
 });
