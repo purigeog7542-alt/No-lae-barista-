@@ -4,12 +4,14 @@
 import { GRINDERS_DATABASE } from './grindersDatabase.js';
 import { calculateGrindSetting } from './baristaLogicEngine.js';
 
-// TODO: แทนที่ด้วย URL และ Anon Key ของโปรเจกต์ Supabase คุณ
-const SUPABASE_URL = 'YOUR_SUPABASE_URL';
-const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
+// ==========================================
+// SUPABASE CONFIGURATION
+// ==========================================
+const SUPABASE_URL = 'https://punvjllkjbeziycbcgxw.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB1bnZqbGxramJlaml5Y2JjZ3h3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQwNjIwNjcsImV4cCI6MjEwOTYzODA2N30.Sn8yDLnO2yn9kFhh9ftHsb_SfWZNr4GKLfOb56dlzn4';
 
 let supabaseClient = null;
-if (window.supabase && SUPABASE_URL !== 'YOUR_SUPABASE_URL') {
+if (window.supabase) {
     supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 }
 
@@ -66,23 +68,23 @@ function calculateGrind() {
         ageDays = Math.floor((today - roastDate) / (1000 * 60 * 60 * 24));
     }
 
-    // เรียกใช้ Engine คำนวณเบอร์บดมาตรฐาน
+    // เรียกใช้ Engine คำนวณเบอร์บดมาตรฐานจาก grindersDatabase และ baristaLogicEngine
     const result = calculateGrindSetting({
         grinderId: grinderId,
-        brewMethod: 'espresso', // ค่าเริ่มต้นหน้าหลัก Barista OS
+        brewMethod: 'espresso',
         roastLevel: roastProfile,
         processType: 'washed'
     });
 
-    let finalSetting = result.finalSettingClick || 2.10;
+    let finalSetting = result.finalSettingClick || 25;
     let alertMsg = `✨ เมล็ดอยู่ในช่วงเวลาสกัดที่เหมาะสม (${ageDays} วันหลังคั่ว)`;
 
     // ปรับชดเชยตามอายุเมล็ดกาแฟ (Degassing Effect)
     if (ageDays < 5) {
-        finalSetting = (typeof finalSetting === 'number' ? finalSetting + 0.2 : 2.30);
+        finalSetting = (typeof finalSetting === 'number' ? finalSetting + 3 : 28);
         alertMsg = `⚠️ เมล็ดคั่วใหม่ (${ageDays} วัน) แก๊สยังเยอะ ควรบดหยาบขึ้นป้องกัน Channelling`;
     } else if (ageDays > 30) {
-        finalSetting = (typeof finalSetting === 'number' ? Math.max(0.5, finalSetting - 0.15) : 1.95);
+        finalSetting = (typeof finalSetting === 'number' ? Math.max(1, finalSetting - 2) : 23);
         alertMsg = `ℹ️ เมล็ดคั่วมาแล้ว ${ageDays} วัน เริ่มเก่า ชดเชยโดยการปรับเบอร์บดละเอียดขึ้น`;
     }
 
@@ -91,7 +93,7 @@ function calculateGrind() {
     const adjustReasonEl = document.getElementById('adjustReason');
     const extraAlertEl = document.getElementById('extraAlert');
 
-    if (grindNumEl) grindNumEl.innerText = typeof finalSetting === 'number' ? finalSetting.toFixed(2) : finalSetting;
+    if (grindNumEl) grindNumEl.innerText = typeof finalSetting === 'number' ? finalSetting : finalSetting;
     if (adjustReasonEl) adjustReasonEl.innerText = `อิงตามเครื่องบด ${result.grinderName || 'Grinder'}, คั่ว ${roastProfile} และอายุเมล็ด ${ageDays} วัน`;
 
     // ดึง Workflow และข้อควรระวังมาแสดงผล
@@ -101,7 +103,7 @@ function calculateGrind() {
     } else {
         workflowHtml = `
             <div>• ใช้ RDT สเปรย์พรมน้ำลดไฟฟ้าสถิตก่อนลง Hopper</div>
-            <div>• หมุน Fines Knocker หลังบดเสร็จเพื่อเคลียร์ผงค้าง (~0.1-0.2g)[span_1](start_span)[span_1](end_span)[span_2](start_span)[span_2](end_span)</div>
+            <div>• หมุน Fines Knocker หลังบดเสร็จเพื่อเคลียร์ผงค้าง (~0.1-0.2g)</div>
         `;
     }
 
@@ -122,7 +124,7 @@ function calculateGrind() {
 // ==========================================
 async function saveLogToSupabase() {
     if (!supabaseClient) {
-        alert('⚠️ กรุณาตั้งค่า Supabase URL และ Anon Key ใน app.js ก่อนบันทึกข้อมูล');
+        alert('⚠️ ระบบ Supabase Client ยังไม่พร้อมใช้งาน');
         return;
     }
 
