@@ -6,6 +6,7 @@
     <title>Nor Lae Bunker Coffee - Barista OS</title>
     <link rel="stylesheet" href="style.css">
     <link rel="manifest" href="manifest.json">
+    <!-- โหลด Supabase Client SDK -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
@@ -20,7 +21,7 @@
     <div class="card">
         <div class="card-title">
             <span>📡 สภาพอากาศตามพิกัดมือถือ (Auto GPS)</span>
-            <button class="btn-sm" onclick="fetchWeatherByLocation()">🔄 อัปเดตพิกัด</button>
+            <button class="btn-sm" id="updateGpsBtn" type="button">🔄 อัปเดตพิกัด</button>
         </div>
         <div class="sensor-grid">
             <div class="sensor-box">
@@ -39,18 +40,26 @@
     <div class="card">
         <div class="card-title">⚙️ ตั้งค่าโปรไฟล์เมล็ด & การสกัด</div>
         
+        <!-- เลือกเครื่องบด (Grinder Selection) -->
+        <label>เลือกเครื่องบด (grinder_model):</label>
+        <select id="grinderSelect">
+            <option value="timemore_bricks_01s">Timemore Bricks 01S (40mm S2C040 Conical)</option>
+            <option value="timemore_sculptor_01s">Timemore Sculptor 01S (Flat Burr)</option>
+            <option value="mischief_m40">Mischief M40 (Red Click Hand Grinder)</option>
+        </select>
+
         <label>ชื่อเมล็ดกาแฟ (bean_name):</label>
         <input type="text" id="beanName" value="Nor Lae House Blend">
 
         <label>โปรไฟล์การคั่ว (roast_profile):</label>
-        <select id="roastProfile" onchange="calculateGrind()">
-            <option value="light">คั่วอ่อน (Light Roast) - Base 1.1</option>
-            <option value="medium" selected>คั่วกลาง (Medium Roast) - Base 1.8</option>
-            <option value="dark">คั่วเข้ม (Dark Roast) - Base 2.4</option>
+        <select id="roastProfile">
+            <option value="light">คั่วอ่อน (Light Roast)</option>
+            <option value="medium" selected>คั่วกลาง (Medium Roast)</option>
+            <option value="dark">คั่วเข้ม (Dark Roast)</option>
         </select>
 
         <label>วันที่คั่วเมล็ดกาแฟ (roast_date):</label>
-        <input type="date" id="roastDate" onchange="calculateGrind()">
+        <input type="date" id="roastDate">
 
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
             <div>
@@ -72,7 +81,7 @@
             <div class="grind-num" id="recommendGrind">2.10</div>
             <div style="font-size: 0.8rem; color: var(--text-main); margin-top: 5px;" id="adjustReason">คำนวณจากสภาพอากาศและวันคั่ว</div>
         </div>
-        <div id="extraAlert" style="font-size: 0.75rem; color: var(--warning); margin-top: 8px; text-align: center;"></div>
+        <div id="extraAlert" style="font-size: 0.75rem; color: var(--warning); margin-top: 8px; text-align: left;"></div>
     </div>
 
     <!-- Actual Shot Results (สำหรับลงผลการชงจริง) -->
@@ -104,13 +113,14 @@
     </div>
 
     <!-- Action Button -->
-    <button onclick="saveLogToSupabase()">💾 บันทึกผลการชงลงฐานข้อมูล</button>
+    <button id="saveLogBtn" type="button">💾 บันทึกผลการชงลงฐานข้อมูล</button>
 
     <div class="footer">
         NOR LAE BUNKER COFFEE • Base Operations & Slow Bar
     </div>
 </div>
 
-<script src="app.js"></script>
+<!-- โหลดไฟล์ JavaScript หลักแบบ type="module" เพื่อให้เชื่อมโยงกับ grindersDatabase.js และ baristaLogicEngine.js ได้ -->
+<script type="module" src="app.js"></script>
 </body>
 </html>
