@@ -1,4 +1,4 @@
-// Nor Lae Bunker Coffee - BARISTA-OS (Auto GPS via Open-Meteo & Supabase)
+// Nor Lae Bunker Coffee - BARISTA-OS (Full Database Log Integration)
 
 // Supabase Configuration
 const SUPABASE_URL = "https://punvjllkjbejiycbcgxw.supabase.co";
@@ -13,7 +13,7 @@ if (typeof supabase !== 'undefined') {
 let currentTemp = 16.5; 
 let currentHum = 82.0;  
 
-// 1. Weather Fetching via Geolocation API & Open-Meteo (No API Key Needed)
+// 1. Weather Fetching via Geolocation API & Open-Meteo
 async function fetchWeatherByLocation() {
     const statusEl = document.getElementById("locationStatus");
 
@@ -30,7 +30,6 @@ async function fetchWeatherByLocation() {
         const lon = position.coords.longitude;
 
         try {
-            // Open-Meteo Free API (ไม่จำกัดคีย์/ไม่ต้องใช้ API Key)
             const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m`;
             const response = await fetch(url);
             if (!response.ok) throw new Error("Open-Meteo Fetch Error");
@@ -77,7 +76,6 @@ function calculateGrind() {
     const profile = profileEl.value;
     const roastDateVal = roastDateEl ? roastDateEl.value : null;
 
-    // Timemore Bricks 01S Base Grind Scale (0.01mm/step)
     let baseGrind = 1.8; 
     if (profile === 'light') baseGrind = 1.1;
     if (profile === 'dark') baseGrind = 2.4;
@@ -85,7 +83,6 @@ function calculateGrind() {
     let roastAdjustment = 0.0;
     let alertText = "";
 
-    // Degassing Calculation
     if (roastDateVal) {
         const roastDate = new Date(roastDateVal);
         const today = new Date();
@@ -102,10 +99,9 @@ function calculateGrind() {
         }
     }
 
-    // Weather Compensation Logic
     let weatherAdjustment = 0.0;
     if (currentHum > 70.0) {
-        weatherAdjustment += 0.3; // ความชื้นสูง/หมอกจัด -> บดหยาบป้องกันตัน
+        weatherAdjustment += 0.3; 
         alertText += `☁️ ความชื้นสูง (>70% RH): บดหยาบ + Pre-infusion 7s`;
     } else if (currentHum < 40.0) {
         weatherAdjustment -= 0.1; 
@@ -130,41 +126,50 @@ function calculateGrind() {
     if (alertEl) alertEl.innerText = alertText;
 }
 
-// 3. Supabase Log Insertion Function
+// 3. Supabase Log Insertion (Complete All Columns)
 async function saveLogToSupabase() {
-    const recEl = document.getElementById("recommendGrind");
-    const yieldEl = document.getElementById("targetYield");
-    const profileEl = document.getElementById("roastProfile");
-    const roastDateEl = document.getElementById("roastDate");
-
-    const grindVal = recEl ? parseFloat(recEl.innerText) : 1.8;
-    const targetVal = yieldEl ? parseFloat(yieldEl.value) : 40.0;
-    const profile = profileEl ? profileEl.value : 'medium';
-    const roastDateVal = roastDateEl ? roastDateEl.value : null;
-
     if (!supabaseClient) {
         alert("ยังไม่ได้ตั้งค่าเชื่อมต่อกับ Supabase ให้ถูกต้อง");
         return;
     }
 
+    // Helper อ่านค่าและแปลงชนิดข้อมูล
+    const getValue = (id) => {
+        const el = document.getElementById(id);
+        return el ? el.value : null;
+    };
+    const getNumValue = (id) => {
+        const val = getValue(id);
+        return val !== null && val !== "" ? parseFloat(val) : null;
+    };
+
+    const recEl = document.getElementById("recommendGrind");
+    const grindVal = recEl ? parseFloat(recEl.innerText) : 1.8;
+
+    // โครงสร้าง Payload ที่แมปตรงกับทุกคอลัมน์ใน Supabase Schema
+    const logData = {
+        bean_name: getValue("beanName") || "Nor Lae House Blend",
+        roast_profile: getValue("roastProfile"),
+        roast_date: getValue("roastDate") || null,
+        grind_size: grindVal,
+        dose_g: getNumValue("doseG") || 18.0,
+        target_yield_g: getNumValue("targetYield") || 40.0,
+        actual_yield_g: getNumValue("actualYieldG"),
+        pre_infusion_sec: getNumValue("preInfusionSec"),
+        shot_time_sec: getNumValue("shotTimeSec"),
+        ambient_temp: currentTemp,
+        ambient_humidity: currentHum,
+        taste_rating: getValue("tasteRating") || null
+    };
+
     const { data, error } = await supabaseClient
         .from('brew_logs')
-        .insert([
-            {
-                bean_name: "Nor Lae House Blend",
-                roast_profile: profile,
-                roast_date: roastDateVal,
-                grind_size: grindVal,
-                target_yield_g: targetVal,
-                ambient_temp: currentTemp,
-                ambient_humidity: currentHum
-            }
-        ]);
+        .insert([logData]);
 
     if (error) {
         alert("บันทึกไม่สำเร็จ: " + error.message);
     } else {
-        alert("บันทึกสถิติช็อต 40g ลง Supabase สำเร็จ!");
+        alert("บันทึกข้อมูลสกัดช็อตสมบูรณ์ทุกคอลัมน์ลง Supabase เรียบร้อยแล้ว!");
     }
 }
 
