@@ -1,0 +1,69 @@
+// grindersDatabase.js
+
+export const GRINDERS_DATABASE = {
+  // 1. Timemore Bricks 01S (จากเอกสารล่าสุด)
+  "timemore_bricks_01s": {
+    id: "timemore_bricks_01s",
+    name: "Timemore Bricks 01S",
+    type: "Electric Single-Dose",
+    burr: "40mm S2C040 Conical Burr (55-58 HRC)", //[span_1](start_span)[span_1](end_span)[span_2](start_span)[span_2](end_span)
+    totalClicks: 150, // 0.01mm / step[span_3](start_span)[span_3](end_span)
+    retention: "0.1 - 0.2g (Fines Knocker)", //[span_4](start_span)[span_4](end_span)[span_5](start_span)[span_5](end_span)
+    workflow: [
+      "ใช้ RDT สเปรย์พรมน้ำ 1-2 ละอองบนเมล็ดกาแฟก่อนลง Hopper เพื่อลดไฟฟ้าสถิต", //[span_6](start_span)[span_6](end_span)[span_7](start_span)[span_7](end_span)
+      "กดปุ่มเปิดเครื่องก่อนค่อยเปิดฝาเทเมล็ดกาแฟลงไป",
+      "เมื่อบดเสร็จ ให้หมุน Fines Knocker (Rotary Knocker) เพื่อเคาะผงกาแฟค้างช็อตให้ออกหมด" //[span_8](start_span)[span_8](end_span)[span_9](start_span)[span_9](end_span)
+    ],
+    // ค่าเบอร์บดมาตรฐาน (Base Ranges)
+    baseRanges: {
+      espresso: { min: 1, max: 45, default: 25 }, //[span_10](start_span)[span_10](end_span)
+      moka_pot: { min: 15, max: 60, default: 35 }, //[span_11](start_span)[span_11](end_span)
+      pour_over: { min: 75, max: 120, default: 95 }, //[span_12](start_span)[span_12](end_span)
+      french_press: { min: 127, max: 145, default: 135 } //[span_13](start_span)[span_13](end_span)
+    },
+    limitations: {
+      lightRoastEspresso: "เฟืองบด Conical 40mm อาจมีแรงบดไม่พอสำหรับ Very Light Roast ในระดับ Espresso แนะนำให้ปรับบดหยาบขึ้น 3-5 clicks หรือเปลี่ยนไปใช้เครื่องบดไฟฟ้า Sculptor 01S" //[span_14](start_span)[span_14](end_span)[span_15](start_span)[span_15](end_span)
+    }
+  },
+
+  // 2. Timemore Sculptor 01S (เครื่องบดไฟฟ้าประจำร้าน)
+  "timemore_sculptor_01s": {
+    id: "timemore_sculptor_01s",
+    name: "Timemore Sculptor 01S",
+    type: "Electric Flat Burr Single-Dose",
+    burr: "Flat Burr (Turbo/Espresso Hybrid)",
+    totalClicks: 18, // Stepless Dial Dial 1-12
+    retention: "< 0.1g (Rotary Knocker)",
+    workflow: [
+      "ตั้งค่า RPM ของมอเตอร์ตามโปรไฟล์รสชาติ (RPM สูง = เพิ่ม Body / RPM ต่ำ = เพิ่ม Clarity)",
+      "ใช้ RDT พรมน้ำเล็กน้อย",
+      "หมุน Rotary Knocker หลังบดเสร็จ"
+    ],
+    baseRanges: {
+      espresso: { min: 1.0, max: 3.5, default: 2.2 },
+      moka_pot: { min: 3.5, max: 5.5, default: 4.5 },
+      pour_over: { min: 6.0, max: 9.5, default: 7.5 },
+      french_press: { min: 10.0, max: 12.0, default: 11.0 }
+    }
+  },
+
+  // 3. Mischief M40 (พร้อม Red Click Adjustment)
+  "mischief_m40_red_click": {
+    id: "mischief_m40_red_click",
+    name: "Mischief M40 (Red Click)",
+    type: "Manual Hand Grinder",
+    burr: "High-Precision Conical Burr",
+    totalClicks: 90, // Red Click เพิ่มความละเอียดระดับ 0.005mm/click
+    retention: "0.0g (Zero Retention)",
+    workflow: [
+      "ใช้ RDT พรมน้ำที่เมล็ดกาแฟก่อนบดมือเสมอ",
+      "หมุนบดด้วยรอบคงที่เพื่อความสม่ำเสมอของ Particle Size"
+    ],
+    baseRanges: {
+      espresso: { min: 12, max: 24, default: 18 },
+      moka_pot: { min: 25, max: 38, default: 30 },
+      pour_over: { min: 45, max: 65, default: 55 },
+      french_press: { min: 70, max: 85, default: 78 }
+    }
+  }
+};
