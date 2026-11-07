@@ -1,207 +1,178 @@
-// Nor Lae Bunker Coffee - BARISTA-OS (Full Production app.js)
+// ==========================================
+// 1. DATABASE & CONFIG (ฐานข้อมูลเครื่องบด)
+// ==========================================
+const GRINDERS_DATABASE = {
+    "timemore_bricks_01s": {
+        name: "Timemore Bricks 01S (Electric)",
+        baseRanges: { light: 1.1, medium: 1.8, dark: 2.4 },
+        workflow: "ใช้ RDT พรมน้ำลดไฟฟ้าสถิต และหมุน Fines Knocker หลังบดเสร็จ"
+    },
+    "timemore_sculptor_01s": {
+        name: "Timemore Sculptor 01S",
+        baseRanges: { light: 2.0, medium: 2.5, dark: 3.2 },
+        workflow: "ปรับรอบ RPM ตามโปรไฟล์ และใช้ Rotary Knocker"
+    },
+    "mischief_m40": {
+        name: "Mischief M40 (Red Click)",
+        baseRanges: { light: 14, medium: 18, dark: 22 },
+        workflow: "พรมน้ำ RDT ทุกครั้ง ควบคุมความเร็วรอบมือหมุนให้สม่ำเสมอ"
+    }
+};
 
-// Supabase Configuration
-const SUPABASE_URL = "https://punvjllkjbejiycbcgxw.supabase.co";
-const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB1bnZqbGxramJlaml5Y2JjZ3h3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQwNjIwNjcsImV4cCI6MjEwOTYzODA2N30.Sn8yDLnO2yn9kFhh9ftHsb_SfWZNr4GKLfOb56dlzn4";
+// ==========================================
+// 2. SUPABASE INITIALIZATION
+// ==========================================
+// TODO: แทนที่ด้วย URL และ Anon Key ของโปรเจกต์ Supabase คุณ
+const SUPABASE_URL = 'YOUR_SUPABASE_URL';
+const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
 
 let supabaseClient = null;
-if (typeof supabase !== 'undefined') {
-    supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+if (window.supabase && SUPABASE_URL !== 'YOUR_SUPABASE_URL') {
+    supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 }
 
-// Global Environment State (Default Bunker Values)
-let currentTemp = 16.5; 
-let currentHum = 82.0;  
-
-// 1. Weather Fetching via Geolocation API & Open-Meteo (No API Key Needed)
+// ==========================================
+// 3. WEATHER & GPS AUTO-FETCH (สภาพอากาศบ้านนอแล)
+// ==========================================
 async function fetchWeatherByLocation() {
-    const statusEl = document.getElementById("locationStatus");
+    const statusEl = document.getElementById('locationStatus');
+    const tempValEl = document.getElementById('tempVal');
+    const humValEl = document.getElementById('humVal');
 
     if (!navigator.geolocation) {
-        if (statusEl) statusEl.innerText = "อุปกรณ์ไม่รองรับ GPS (ใช้ค่าสำรองหน้าดอย)";
-        useDefaultWeather();
+        statusEl.innerText = "⚠️ Browser ไม่รองรับ Geolocation ใช้ค่ามาตรฐานฐานปฏิบัติการ";
         return;
     }
 
-    if (statusEl) statusEl.innerText = "กำลังค้นหาพิกัด GPS...";
+    statusEl.innerText = "📍 กำลังดึงพิกัด GPS พื้นที่บ้านนอแล...";
 
     navigator.geolocation.getCurrentPosition(async (position) => {
         const lat = position.coords.latitude;
         const lon = position.coords.longitude;
+        statusEl.innerText = `✅ พิกัด: ${lat.toFixed(4)}, ${lon.toFixed(4)} (กำลังดึงสภาพอากาศ...)`;
 
         try {
-            const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m`;
-            const response = await fetch(url);
-            if (!response.ok) throw new Error("Open-Meteo Fetch Error");
+            // ดึงข้อมูลอากาศจาก Open-Meteo API (ฟรี ไม่ต้องใช้ Key)
+            const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m`);
+            const data = await res.json();
+            
+            if (data && data.current) {
+                const temp = data.current.temperature_2m;
+                const hum = data.current.relative_humidity_2m;
 
-            const data = await response.json();
-            currentTemp = data.current.temperature_2m;
-            currentHum = data.current.relative_humidity_2m;
-
-            if (statusEl) statusEl.innerText = `พิกัด GPS สำเร็จ (${lat.toFixed(2)}, ${lon.toFixed(2)})`;
-            updateWeatherUI();
-            calculateGrind();
-        } catch (error) {
-            console.warn("Weather Fetch Failed, using Bunker Fallback:", error);
-            if (statusEl) statusEl.innerText = "ดึงสภาพอากาศไม่สำเร็จ (ใช้ค่าสำรองหน้าดอย)";
-            useDefaultWeather();
+                tempValEl.innerText = `${temp} °C`;
+                humValEl.innerText = `${hum} %`;
+                statusEl.innerText = `✅ อัปเดตสภาพอากาศจากพิกัดจริงสำเร็จ`;
+                calculateGrind(); // คำนวณเบอร์บดใหม่ตามอุณหภูมิ/ความชื้นจริง
+            }
+        } catch (err) {
+            console.error(err);
+            statusEl.innerText = "⚠️ ดึงอากาศไม่สำเร็จ ใช้ค่าเริ่มต้นฐานปฏิบัติการ";
         }
     }, (error) => {
-        console.warn("GPS Permission Denied or Timeout:", error);
-        if (statusEl) statusEl.innerText = "ไม่สามารถเข้าถึง GPS ได้ (ใช้ค่าสำรองหน้าดอย)";
-        useDefaultWeather();
-    }, { timeout: 8000, enableHighAccuracy: true });
+        console.warn(error);
+        statusEl.innerText = "⚠️ ไม่สามารถเข้าถึง GPS ได้ ใช้ค่าอุณหภูมิมาตรฐาน 16.5°C";
+    }, { timeout: 10000 });
 }
 
-function useDefaultWeather() {
-    currentTemp = 16.5;
-    currentHum = 82.0;
-    updateWeatherUI();
-    calculateGrind();
-}
-
-function updateWeatherUI() {
-    const tempEl = document.getElementById("tempVal");
-    const humEl = document.getElementById("humVal");
-    if (tempEl) tempEl.innerText = `${currentTemp.toFixed(1)} °C`;
-    if (humEl) humEl.innerText = `${currentHum.toFixed(1)} %`;
-}
-
-// 2. Master Calibration Logic (Target: 40 ml / ~40g)
+// ==========================================
+// 4. GRIND CALCULATION ENGINE (คำนวณเบอร์บดอัจฉริยะ)
+// ==========================================
 function calculateGrind() {
-    const profileEl = document.getElementById("roastProfile");
-    const roastDateEl = document.getElementById("roastDate");
-    if (!profileEl) return;
+    const roastProfile = document.getElementById('roastProfile').value;
+    const roastDateVal = document.getElementById('roastDate').value;
+    
+    // ดึงค่าพื้นฐานตามระดับการคั่ว
+    let baseGrind = 1.8;
+    if (roastProfile === 'light') baseGrind = 1.1;
+    if (roastProfile === 'dark') baseGrind = 2.4;
 
-    const profile = profileEl.value;
-    const roastDateVal = roastDateEl ? roastDateEl.value : null;
-
-    // Timemore Bricks 01S Base Grind Scale (0.01mm/step)
-    let baseGrind = 1.8; 
-    if (profile === 'light') baseGrind = 1.1;
-    if (profile === 'dark') baseGrind = 2.4;
-
-    let roastAdjustment = 0.0;
-    let alertText = "";
-
-    // Degassing Calculation
+    // คำนวณอายุเมล็ดกาแฟ (Degassing Effect)
+    let ageDays = 7; // ค่าเริ่มต้น
     if (roastDateVal) {
         const roastDate = new Date(roastDateVal);
         const today = new Date();
-        const diffDays = Math.floor((today - roastDate) / (1000 * 60 * 60 * 24));
-
-        if (diffDays >= 0 && diffDays <= 7) {
-            roastAdjustment += 0.25; 
-            alertText += `⚠️ คั่วใหม่ (${diffDays} วัน): บดหยาบขึ้นไล่ก๊าซ | `;
-        } else if (diffDays > 21) {
-            roastAdjustment -= 0.2; 
-            alertText += `⚠️ คั่วนาน (${diffDays} วัน): ลดเบอร์บดเล็กน้อย | `;
-        } else {
-            alertText += `✨ Peak Flavor Period | `;
-        }
+        const diffTime = today - roastDate;
+        ageDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
     }
 
-    // Weather Compensation Logic
-    let weatherAdjustment = 0.0;
-    if (currentHum > 70.0) {
-        weatherAdjustment += 0.3; 
-        alertText += `☁️ ความชื้นสูง (>70% RH): บดหยาบ + Pre-infusion 7s`;
-    } else if (currentHum < 40.0) {
-        weatherAdjustment -= 0.1; 
-        alertText += `☀️ อากาศแห้ง (<40% RH): เตือนพ่นสเปรย์ RDT`;
+    let ageAdjustment = 0;
+    let alertMsg = "";
+
+    if (ageDays < 5) {
+        // เมล็ดสดเกินไป แก๊สเยอะ ต้องบดหยาบขึ้นป้องกัน Channelling
+        ageAdjustment = +0.2;
+        alertMsg = `⚠️ เมล็ดคั่วใหม่ (${ageDays} วัน) แก๊สยังคายไม่หมด แนะนำพักเมล็ดเพิ่มหรือบดหยาบขึ้น`;
+    } else if (ageDays > 30) {
+        // เมล็ดเก่า คายแก๊สหมด ต้องบดละเอียดขึ้นเพื่อเพิ่มแรงต้าน
+        ageAdjustment = -0.15;
+        alertMsg = `ℹ️ เมล็ดคั่วมาแล้ว ${ageDays} วัน (เริ่มเก่า) ชดเชยโดยการปรับเบอร์บดละเอียดขึ้น`;
     } else {
-        alertText += `🌤️ สภาพอากาศปกติ`;
+        alertMsg = `✨ เมล็ดอยู่ในช่วงเวลาสกัดที่เหมาะสม (${ageDays} วันหลังคั่ว)`;
     }
 
-    if (currentTemp < 18.0) {
-        alertText += ` | ❄️ อากาศหนาว (<18°C): เพิ่ม PID Temp +1°C (อุ่นด้าม 58mm)`;
-    }
+    const finalGrind = Math.max(0.5, baseGrind + ageAdjustment).toFixed(2);
 
-    let finalGrind = baseGrind + roastAdjustment + weatherAdjustment;
-    finalGrind = Math.max(0.5, Math.min(4.0, finalGrind));
-
-    const recEl = document.getElementById("recommendGrind");
-    const reasonEl = document.getElementById("adjustReason");
-    const alertEl = document.getElementById("extraAlert");
-
-    if (recEl) recEl.innerText = finalGrind.toFixed(2);
-    if (reasonEl) reasonEl.innerText = `Base(${baseGrind}) + คั่ว(${roastAdjustment.toFixed(2)}) + สภาพอากาศ(${weatherAdjustment.toFixed(2)})`;
-    if (alertEl) alertEl.innerText = alertText;
+    // แสดงผลบนหน้าจอ
+    document.getElementById('recommendGrind').innerText = finalGrind;
+    document.getElementById('adjustReason').innerText = `อิงตามคั่ว ${roastProfile} และอายุเมล็ด ${ageDays} วัน`;
+    document.getElementById('extraAlert').innerText = alertMsg;
 }
 
-// 3. Supabase Log Insertion (Complete All Columns & Fixed Null Values)
+// ==========================================
+// 5. SUPABASE LOG STORAGE (บันทึกผลลงฐานข้อมูล)
+// ==========================================
 async function saveLogToSupabase() {
     if (!supabaseClient) {
-        alert("ยังไม่ได้ตั้งค่าเชื่อมต่อกับ Supabase ให้ถูกต้อง");
+        alert('⚠️ ยังไม่ได้ตั้งค่าเชื่อมต่อ Supabase (โปรดใส่ URL และ Anon Key ใน app.js)');
         return;
     }
 
-    // ดึง Element จากหน้าเว็บมาตรวจสอบค่าตรงๆ
-    const beanNameEl = document.getElementById("beanName");
-    const roastProfileEl = document.getElementById("roastProfile");
-    const roastDateEl = document.getElementById("roastDate");
-    const doseGEl = document.getElementById("doseG");
-    const targetYieldEl = document.getElementById("targetYield");
-    const actualYieldEl = document.getElementById("actualYieldG");
-    const preInfusionEl = document.getElementById("preInfusionSec");
-    const shotTimeEl = document.getElementById("shotTimeSec");
-    const tasteRatingEl = document.getElementById("tasteRating");
-    const recEl = document.getElementById("recommendGrind");
-
-    const grindVal = recEl ? parseFloat(recEl.innerText) : 1.8;
-
-    // ฟังก์ชันแปลงค่าตัวเลข ป้องกันส่งค่าว่างเปล่าเป็น String จนทำให้ฐานข้อมูลเป็น NULL
-    const parseNum = (el) => {
-        if (!el || el.value === "" || el.value === undefined) return null;
-        const num = parseFloat(el.value);
-        return isNaN(num) ? null : num;
-    };
-
     const logData = {
-        bean_name: beanNameEl && beanNameEl.value ? beanNameEl.value : "Nor Lae House Blend",
-        roast_profile: roastProfileEl ? roastProfileEl.value : "medium",
-        roast_date: roastDateEl && roastDateEl.value ? roastDateEl.value : null,
-        grind_size: grindVal,
-        dose_g: parseNum(doseGEl) ?? 18.0,
-        target_yield_g: parseNum(targetYieldEl) ?? 40.0,
-        actual_yield_g: parseNum(actualYieldEl),
-        pre_infusion_sec: parseNum(preInfusionEl),
-        shot_time_sec: parseNum(shotTimeEl),
-        ambient_temp: currentTemp,
-        ambient_humidity: currentHum,
-        taste_rating: tasteRatingEl && tasteRatingEl.value ? tasteRatingEl.value : null
+        bean_name: document.getElementById('beanName').value,
+        roast_profile: document.getElementById('roastProfile').value,
+        roast_date: document.getElementById('roastDate').value || null,
+        dose_g: parseFloat(document.getElementById('doseG').value) || 0,
+        target_yield_g: parseFloat(document.getElementById('targetYield').value) || 0,
+        recommended_grind: parseFloat(document.getElementById('recommendGrind').innerText) || 0,
+        actual_yield_g: parseFloat(document.getElementById('actualYieldG').value) || null,
+        pre_infusion_sec: parseFloat(document.getElementById('preInfusionSec').value) || null,
+        shot_time_sec: parseFloat(document.getElementById('shotTimeSec').value) || null,
+        taste_rating: document.getElementById('tasteRating').value || null,
+        ambient_temp: parseFloat(document.getElementById('tempVal').innerText) || null,
+        ambient_humidity: parseFloat(document.getElementById('humVal').innerText) || null,
+        created_at: new Date().toISOString()
     };
 
-    console.log("📤 Payload ที่ส่งเข้า Supabase:", logData);
+    try {
+        const { data, error } = await supabaseClient
+            .from('brew_logs')
+            .insert([logData]);
 
-    const { data, error } = await supabaseClient
-        .from('brew_logs')
-        .insert([logData]);
+        if (error) throw error;
 
-    if (error) {
-        console.error("❌ Supabase Insert Error:", error);
-        alert("บันทึกไม่สำเร็จ: " + error.message);
-    } else {
-        console.log("✅ Insert Success:", data);
-        alert("บันทึกข้อมูลสกัดช็อตสมบูรณ์ทุกคอลัมน์ลง Supabase เรียบร้อยแล้ว!");
+        alert('✅ บันทึกผลการสกัดลงฐานข้อมูล Supabase สำเร็จ!');
+        // เคลียร์ฟอร์มผลสกัดจริง
+        document.getElementById('actualYieldG').value = '';
+        document.getElementById('preInfusionSec').value = '';
+        document.getElementById('shotTimeSec').value = '';
+        document.getElementById('tasteRating').value = '';
+    } catch (err) {
+        console.error(err);
+        alert('❌ บันทึกไม่สำเร็จ: ' + err.message);
     }
 }
 
-// Auto Load & Initialize
-window.onload = () => {
-    const d = new Date();
-    d.setDate(d.getDate() - 10);
-    if (document.getElementById("roastDate")) {
-        document.getElementById("roastDate").value = d.toISOString().split('T')[0];
-    }
+// โหลดระบบอัตโนมัติเมื่อเปิดหน้าเว็บ
+window.addEventListener('DOMContentLoaded', () => {
+    // ตั้งค่าวันที่คั่วเริ่มต้นเป็น 7 วันที่แล้ว
+    const defaultDate = new Date();
+    defaultDate.setDate(defaultDate.getDate() - 7);
+    document.getElementById('roastDate').value = defaultDate.toISOString().split('T')[0];
+
+    // คำนวณเบอร์บดเริ่มต้น
+    calculateGrind();
+
+    // ดึงพิกัดอากาศอัตโนมัติ
     fetchWeatherByLocation();
-};
-
-// Register Service Worker for Offline PWA
-if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js')
-            .then(reg => console.log('SW Registered:', reg.scope))
-            .catch(err => console.log('SW Fail:', err));
-    });
-}
+});
