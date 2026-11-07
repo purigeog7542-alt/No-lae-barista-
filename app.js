@@ -1,8 +1,10 @@
-// app.js
+// ==========================================
+// IMPORT MODULES & DATABASES
+// ==========================================
 import { GRINDERS_DATABASE } from './grindersDatabase.js';
 import { calculateGrindSetting } from './baristaLogicEngine.js';
 
-// TODO: ใส่ค่า Supabase ของคุณที่นี่
+// TODO: แทนที่ด้วย URL และ Anon Key ของโปรเจกต์ Supabase คุณ
 const SUPABASE_URL = 'YOUR_SUPABASE_URL';
 const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
 
@@ -11,7 +13,9 @@ if (window.supabase && SUPABASE_URL !== 'YOUR_SUPABASE_URL') {
     supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 }
 
-// ฟังก์ชันดึงสภาพอากาศจาก GPS ตามพิกัดจริง
+// ==========================================
+// 1. WEATHER & GPS AUTO-FETCH (สภาพอากาศบ้านนอแล)
+// ==========================================
 async function fetchWeatherByLocation() {
     const statusEl = document.getElementById('locationStatus');
     const tempValEl = document.getElementById('tempVal');
@@ -38,16 +42,19 @@ async function fetchWeatherByLocation() {
                 if (humValEl) humValEl.innerText = `${data.current.relative_humidity_2m} %`;
             }
         } catch (err) {
-            console.error(err);
+            console.error("Weather fetch error:", err);
         }
     }, (error) => {
-        console.warn(error);
-        if (statusEl) statusEl.innerText = "⚠️ ไม่สามารถเข้าถึง GPS ได้ ใช้ค่ามาตรฐาน";
+        console.warn("GPS error:", error);
+        if (statusEl) statusEl.innerText = "⚠️ ไม่สามารถเข้าถึง GPS ได้ ใช้ค่ามาตรฐานฐานปฏิบัติการ";
     }, { timeout: 10000 });
 }
 
-// ฟังก์ชันคำนวณเบอร์บดหลัก
+// ==========================================
+// 2. DYNAMIC GRIND CALCULATION ENGINE
+// ==========================================
 function calculateGrind() {
+    const grinderId = document.getElementById('grinderSelect') ? document.getElementById('grinderSelect').value : 'timemore_bricks_01s';
     const roastProfile = document.getElementById('roastProfile').value;
     const roastDateVal = document.getElementById('roastDate').value;
     
@@ -59,41 +66,68 @@ function calculateGrind() {
         ageDays = Math.floor((today - roastDate) / (1000 * 60 * 60 * 24));
     }
 
-    // เรียกใช้ตรรกะจาก Engine หรือคำนวณเบื้องต้นตามสเปก Bricks 01S
-    let baseGrind = roastProfile === 'light' ? 15 : (roastProfile === 'dark' ? 35 : 25);
+    // เรียกใช้ Engine คำนวณเบอร์บดมาตรฐาน
+    const result = calculateGrindSetting({
+        grinderId: grinderId,
+        brewMethod: 'espresso', // ค่าเริ่มต้นหน้าหลัก Barista OS
+        roastLevel: roastProfile,
+        processType: 'washed'
+    });
+
+    let finalSetting = result.finalSettingClick || 2.10;
     let alertMsg = `✨ เมล็ดอยู่ในช่วงเวลาสกัดที่เหมาะสม (${ageDays} วันหลังคั่ว)`;
 
+    // ปรับชดเชยตามอายุเมล็ดกาแฟ (Degassing Effect)
     if (ageDays < 5) {
-        baseGrind += 3;
-        alertMsg = `⚠️ เมล็ดคั่วใหม่ (${ageDays} วัน) แก๊สยังเยอะ ควรบดหยาบขึ้น`;
+        finalSetting = (typeof finalSetting === 'number' ? finalSetting + 0.2 : 2.30);
+        alertMsg = `⚠️ เมล็ดคั่วใหม่ (${ageDays} วัน) แก๊สยังเยอะ ควรบดหยาบขึ้นป้องกัน Channelling`;
     } else if (ageDays > 30) {
-        baseGrind -= 2;
-        alertMsg = `ℹ️ เมล็ดคั่วมาแล้ว ${ageDays} วัน เริ่มเก่า ควรบดละเอียดขึ้น`;
+        finalSetting = (typeof finalSetting === 'number' ? Math.max(0.5, finalSetting - 0.15) : 1.95);
+        alertMsg = `ℹ️ เมล็ดคั่วมาแล้ว ${ageDays} วัน เริ่มเก่า ชดเชยโดยการปรับเบอร์บดละเอียดขึ้น`;
     }
 
     // แสดงผลบนหน้าเว็บ
-    document.getElementById('recommendGrind').innerText = baseGrind;
-    document.getElementById('adjustReason').innerText = `อิงตามคั่ว ${roastProfile} และอายุเมล็ด ${ageDays} วัน`;
-    
-    // แสดง Workflow และคำแนะนำเชิงลึกของเครื่องบด
-    document.getElementById('extraAlert').innerHTML = `
-        ${alertMsg}
-        <div style="margin-top: 8px; font-size: 0.72rem; text-align: left; background: rgba(0,0,0,0.15); padding: 8px; border-radius: 6px;">
-            <div style="font-weight: bold; color: #f59e0b; margin-bottom: 3px;">💡 Workflow แนะนำ (Timemore Bricks 01S):</div>
-            <div>• พรมน้ำ RDT ก่อนเทเมล็ดลง Hopper เพื่อลดไฟฟ้าสถิต</div>
-            <div>• หลังบดเสร็จ ให้หมุน Fines Knocker เพื่อเคาะผงค้าง (~0.1-0.2g)</div>
-        </div>
-    `;
+    const grindNumEl = document.getElementById('recommendGrind');
+    const adjustReasonEl = document.getElementById('adjustReason');
+    const extraAlertEl = document.getElementById('extraAlert');
+
+    if (grindNumEl) grindNumEl.innerText = typeof finalSetting === 'number' ? finalSetting.toFixed(2) : finalSetting;
+    if (adjustReasonEl) adjustReasonEl.innerText = `อิงตามเครื่องบด ${result.grinderName || 'Grinder'}, คั่ว ${roastProfile} และอายุเมล็ด ${ageDays} วัน`;
+
+    // ดึง Workflow และข้อควรระวังมาแสดงผล
+    let workflowHtml = "";
+    if (result.workflow && Array.isArray(result.workflow)) {
+        workflowHtml = result.workflow.map(w => `<div>• ${w}</div>`).join('');
+    } else {
+        workflowHtml = `
+            <div>• ใช้ RDT สเปรย์พรมน้ำลดไฟฟ้าสถิตก่อนลง Hopper</div>
+            <div>• หมุน Fines Knocker หลังบดเสร็จเพื่อเคลียร์ผงค้าง (~0.1-0.2g)[span_1](start_span)[span_1](end_span)[span_2](start_span)[span_2](end_span)</div>
+        `;
+    }
+
+    if (extraAlertEl) {
+        extraAlertEl.innerHTML = `
+            <div>${alertMsg}</div>
+            ${result.warning ? `<div style="color: #ef4444; margin-top: 4px;">⚠️ ${result.warning}</div>` : ''}
+            <div style="margin-top: 8px; font-size: 0.72rem; text-align: left; background: rgba(0,0,0,0.15); padding: 8px; border-radius: 6px;">
+                <div style="font-weight: bold; color: #f59e0b; margin-bottom: 3px;">💡 Workflow แนะนำ:</div>
+                ${workflowHtml}
+            </div>
+        `;
+    }
 }
 
-// ฟังก์ชันบันทึกข้อมูลลง Supabase
+// ==========================================
+// 3. SUPABASE LOG STORAGE (บันทึกผลการชง)
+// ==========================================
 async function saveLogToSupabase() {
     if (!supabaseClient) {
-        alert('⚠️ กรุณาตั้งค่า Supabase URL และ Anon Key ใน app.js ก่อนบันทึก');
+        alert('⚠️ กรุณาตั้งค่า Supabase URL และ Anon Key ใน app.js ก่อนบันทึกข้อมูล');
         return;
     }
 
     const logData = {
+        grinder_model: document.getElementById('grinderSelect') ? document.getElementById('grinderSelect').value : 'timemore_bricks_01s',
         bean_name: document.getElementById('beanName').value,
         roast_profile: document.getElementById('roastProfile').value,
         roast_date: document.getElementById('roastDate').value || null,
@@ -104,33 +138,50 @@ async function saveLogToSupabase() {
         pre_infusion_sec: parseFloat(document.getElementById('preInfusionSec').value) || null,
         shot_time_sec: parseFloat(document.getElementById('shotTimeSec').value) || null,
         taste_rating: document.getElementById('tasteRating').value || null,
+        ambient_temp: parseFloat(document.getElementById('tempVal').innerText) || null,
+        ambient_humidity: parseFloat(document.getElementById('humVal').innerText) || null,
         created_at: new Date().toISOString()
     };
 
     try {
         const { error } = await supabaseClient.from('brew_logs').insert([logData]);
         if (error) throw error;
-        alert('✅ บันทึกผลการสกัดลง Supabase สำเร็จ!');
+        alert('✅ บันทึกผลการสกัดลงฐานข้อมูล Supabase สำเร็จ!');
+        
+        // เคลียร์ฟอร์มผลสกัดจริงหลังบันทึก
+        document.getElementById('actualYieldG').value = '';
+        document.getElementById('preInfusionSec').value = '';
+        document.getElementById('shotTimeSec').value = '';
+        document.getElementById('tasteRating').value = '';
     } catch (err) {
-        console.error(err);
+        console.error("Supabase insert error:", err);
         alert('❌ บันทึกไม่สำเร็จ: ' + err.message);
     }
 }
 
-// ผูก Event เมื่อโหลดหน้าเว็บเสร็จ
+// ==========================================
+// 4. EVENT LISTENERS & INITIALIZATION
+// ==========================================
 window.addEventListener('DOMContentLoaded', () => {
+    // ตั้งค่าวันที่คั่วเริ่มต้นเป็น 7 วันที่แล้ว
     const defaultDate = new Date();
     defaultDate.setDate(defaultDate.getDate() - 7);
-    document.getElementById('roastDate').value = defaultDate.toISOString().split('T')[0];
+    const roastDateEl = document.getElementById('roastDate');
+    if (roastDateEl) roastDateEl.value = defaultDate.toISOString().split('T')[0];
 
-    // ผูก Event ให้ฟอร์มคำนวณอัตโนมัติเมื่อมีการเปลี่ยนแปลง
-    document.getElementById('roastProfile').addEventListener('change', calculateGrind);
-    document.getElementById('roastDate').addEventListener('change', calculateGrind);
-    
-    // ผูกปุ่มบันทึก (ให้แน่ใจว่าปุ่มใน HTML มี onclick หรือเพิ่ม Event Listener ที่นี่)
-    window.saveLogToSupabase = saveLogToSupabase;
+    // ผูก Event ให้ฟอร์มคำนวณอัตโนมัติเมื่อมีการเปลี่ยนแปลงค่า
+    const triggerElements = ['grinderSelect', 'roastProfile', 'roastDate'];
+    triggerElements.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener('change', calculateGrind);
+    });
+
+    // ผูกฟังก์ชันเข้ากับ Global window เพื่อให้ปุ่มใน HTML เรียกใช้งานได้ทันที
     window.fetchWeatherByLocation = fetchWeatherByLocation;
+    window.saveLogToSupabase = saveLogToSupabase;
+    window.calculateGrind = calculateGrind;
 
+    // รันการคำนวณและดึงอากาศเมื่อเปิดหน้าเว็บ
     calculateGrind();
     fetchWeatherByLocation();
 });
