@@ -16,26 +16,23 @@
         <div class="subtitle">BARISTA-OS • Target 40 ml Calibration System</div>
     </header>
 
-    <!-- Weather & API Config Card -->
+    <!-- Weather & GPS Card -->
     <div class="card">
         <div class="card-title">
-            <span>📡 สภาพอากาศตามพิกัดมือถือ (GPS)</span>
+            <span>📡 สภาพอากาศตามพิกัดมือถือ (Auto GPS)</span>
             <button class="btn-sm" onclick="fetchWeatherByLocation()">🔄 อัปเดตพิกัด</button>
         </div>
         <div class="sensor-grid">
             <div class="sensor-box">
-                <div class="sensor-val" id="tempVal">-- °C</div>
+                <div class="sensor-val" id="tempVal">16.5 °C</div>
                 <div class="sensor-label">อุณหภูมิห้อง</div>
             </div>
             <div class="sensor-box">
-                <div class="sensor-val" id="humVal">-- %</div>
+                <div class="sensor-val" id="humVal">82.0 %</div>
                 <div class="sensor-label">ความชื้นสัมพัทธ์ (RH)</div>
             </div>
         </div>
-        <div id="locationStatus" style="font-size: 0.7rem; color: var(--text-sub); margin-top: 6px; text-align: center;">กำลังรอพิกัด GPS...</div>
-        
-        <label style="margin-top: 10px;">OpenWeather API Key (ป้อนผ่านหน้าเว็บ):</label>
-        <input type="password" id="weatherApiKey" placeholder="วาง OpenWeather API Key ที่นี่..." onchange="saveApiKeyLocally()">
+        <div id="locationStatus" style="font-size: 0.7rem; color: var(--text-sub); margin-top: 6px; text-align: center;">กำลังดึงพิกัด GPS...</div>
     </div>
 
     <!-- Bean Profile & Config -->
@@ -61,7 +58,7 @@
         <div class="card-title">💡 คำแนะนำเบอร์บดและเวลาชง</div>
         <div class="result-box">
             <div class="sensor-label">เบอร์บดแนะนำ (Timemore Bricks 01S)</div>
-            <div class="grind-num" id="recommendGrind">1.80</div>
+            <div class="grind-num" id="recommendGrind">2.10</div>
             <div style="font-size: 0.8rem; color: var(--text-main); margin-top: 5px;" id="adjustReason">คำนวณจากสภาพอากาศและวันคั่ว</div>
         </div>
         <div id="extraAlert" style="font-size: 0.75rem; color: var(--warning); margin-top: 8px; text-align: center;"></div>
