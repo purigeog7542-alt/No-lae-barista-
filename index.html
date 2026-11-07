@@ -13,7 +13,7 @@
 <div class="container">
     <header>
         <h1>☕ NOR LAE BUNKER COFFEE</h1>
-        <div class="subtitle">BARISTA-OS • Target 40 ml Calibration System</div>
+        <div class="subtitle">BARISTA-OS • Full Log Extraction System</div>
     </header>
 
     <!-- Weather & GPS Card -->
@@ -25,11 +25,11 @@
         <div class="sensor-grid">
             <div class="sensor-box">
                 <div class="sensor-val" id="tempVal">16.5 °C</div>
-                <div class="sensor-label">อุณหภูมิห้อง</div>
+                <div class="sensor-label">อุณหภูมิห้อง (ambient_temp)</div>
             </div>
             <div class="sensor-box">
                 <div class="sensor-val" id="humVal">82.0 %</div>
-                <div class="sensor-label">ความชื้นสัมพัทธ์ (RH)</div>
+                <div class="sensor-label">ความชื้นสัมพัทธ์ (ambient_humidity)</div>
             </div>
         </div>
         <div id="locationStatus" style="font-size: 0.7rem; color: var(--text-sub); margin-top: 6px; text-align: center;">กำลังดึงพิกัด GPS...</div>
@@ -37,31 +37,70 @@
 
     <!-- Bean Profile & Config -->
     <div class="card">
-        <div class="card-title">⚙️ ตั้งค่าโปรไฟล์เมล็ด & การสกัด (Target: 40g)</div>
+        <div class="card-title">⚙️ ตั้งค่าโปรไฟล์เมล็ด & การสกัด</div>
         
-        <label>โปรไฟล์การคั่ว (Roast Profile):</label>
+        <label>ชื่อเมล็ดกาแฟ (bean_name):</label>
+        <input type="text" id="beanName" value="Nor Lae House Blend">
+
+        <label>โปรไฟล์การคั่ว (roast_profile):</label>
         <select id="roastProfile" onchange="calculateGrind()">
             <option value="light">คั่วอ่อน (Light Roast) - Base 1.1</option>
             <option value="medium" selected>คั่วกลาง (Medium Roast) - Base 1.8</option>
             <option value="dark">คั่วเข้ม (Dark Roast) - Base 2.4</option>
         </select>
 
-        <label>วันที่คั่วเมล็ดกาแฟ (Roast Date):</label>
+        <label>วันที่คั่วเมล็ดกาแฟ (roast_date):</label>
         <input type="date" id="roastDate" onchange="calculateGrind()">
 
-        <label>น้ำหนักเป้าหมายช็อตกาแฟ (Target Yield):</label>
-        <input type="number" id="targetYield" value="40.0" step="0.5">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+            <div>
+                <label>ผงกาแฟ (dose_g):</label>
+                <input type="number" id="doseG" value="18.0" step="0.1">
+            </div>
+            <div>
+                <label>เป้าหมาย (target_yield_g):</label>
+                <input type="number" id="targetYield" value="40.0" step="0.5">
+            </div>
+        </div>
     </div>
 
     <!-- Recommendation Box -->
     <div class="card">
         <div class="card-title">💡 คำแนะนำเบอร์บดและเวลาชง</div>
         <div class="result-box">
-            <div class="sensor-label">เบอร์บดแนะนำ (Timemore Bricks 01S)</div>
+            <div class="sensor-label">เบอร์บดแนะนำ (grind_size)</div>
             <div class="grind-num" id="recommendGrind">2.10</div>
             <div style="font-size: 0.8rem; color: var(--text-main); margin-top: 5px;" id="adjustReason">คำนวณจากสภาพอากาศและวันคั่ว</div>
         </div>
         <div id="extraAlert" style="font-size: 0.75rem; color: var(--warning); margin-top: 8px; text-align: center;"></div>
+    </div>
+
+    <!-- Actual Shot Results (สำหรับลงผลการชงจริง) -->
+    <div class="card">
+        <div class="card-title">⏱️ บันทึกผลการสกัดจริง (Actual Shot Log)</div>
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+            <div>
+                <label>น้ำหนักที่ได้จริง (actual_yield_g):</label>
+                <input type="number" id="actualYieldG" placeholder="เช่น 40.0" step="0.1">
+            </div>
+            <div>
+                <label>Pre-infusion (pre_infusion_sec):</label>
+                <input type="number" id="preInfusionSec" placeholder="เช่น 5.0" step="0.5">
+            </div>
+        </div>
+
+        <label>เวลารวมสกัด (shot_time_sec):</label>
+        <input type="number" id="shotTimeSec" placeholder="เช่น 28.0" step="0.5">
+
+        <label>ประเมินรสชาติ (taste_rating):</label>
+        <select id="tasteRating">
+            <option value="">-- เลือกผลประเมินรสชาติ --</option>
+            <option value="Optimal">✨ สมบูรณ์แบบ (Optimal Balance)</option>
+            <option value="Sour">🍋 เปรี้ยวโดด (Under-extracted)</option>
+            <option value="Bitter">☕ ขมติดคอ/ติดไหม้ (Over-extracted)</option>
+            <option value="Astringent">🍂 ฝาด/แห้งชา (Channeling)</option>
+        </select>
     </div>
 
     <!-- Action Button -->
