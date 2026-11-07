@@ -56,9 +56,13 @@ async function fetchWeatherByLocation() {
 // 2. DYNAMIC GRIND CALCULATION ENGINE
 // ==========================================
 function calculateGrind() {
-    const grinderId = document.getElementById('grinderSelect') ? document.getElementById('grinderSelect').value : 'timemore_bricks_01s';
-    const roastProfile = document.getElementById('roastProfile').value; // light, medium, dark
-    const roastDateVal = document.getElementById('roastDate').value;
+    const grinderSelectEl = document.getElementById('grinderSelect');
+    const roastProfileEl = document.getElementById('roastProfile');
+    const roastDateEl = document.getElementById('roastDate');
+
+    const grinderId = grinderSelectEl ? grinderSelectEl.value : 'timemore_bricks_01s';
+    const roastProfile = roastProfileEl ? roastProfileEl.value : 'medium';
+    const roastDateVal = roastDateEl ? roastDateEl.value : '';
     
     // คำนวณอายุเมล็ดกาแฟ
     let ageDays = 7;
@@ -68,41 +72,28 @@ function calculateGrind() {
         ageDays = Math.floor((today - roastDate) / (1000 * 60 * 60 * 24));
     }
 
-    // กำหนดค่าตั้งต้นเบอร์บดตามระดับการคั่วเพื่อไม่ให้ค่าค้าง
-    let baseClick = 25; // Medium
-    if (roastProfile === 'light') {
-        baseClick = 21; // คั่วอ่อน บดละเอียดขึ้น
-    } else if (roastProfile === 'medium') {
-        baseClick = 25; // คั่วกลาง
-    } else if (roastProfile === 'dark') {
-        baseClick = 30; // คั่วเข้ม บดหยาบขึ้น
+    // เรียกใช้ Engine คำนวณเบอร์บดจาก baristaLogicEngine.js โดยตรง
+    const result = calculateGrindSetting({
+        grinderId: grinderId,
+        brewMethod: 'espresso',
+        roastLevel: roastProfile,
+        processType: 'washed'
+    });
+
+    if (result.error) {
+        console.error(result.error);
+        return;
     }
 
-    // พยายามดึงค่าจาก Engine ภายนอก (ถ้ามี)
-    let engineResult = null;
-    try {
-        engineResult = calculateGrindSetting({
-            grinderId: grinderId,
-            brewMethod: 'espresso',
-            roastLevel: roastProfile,
-            processType: 'washed'
-        });
-        if (engineResult && engineResult.finalSettingClick) {
-            baseClick = engineResult.finalSettingClick;
-        }
-    } catch (e) {
-        console.warn("Engine fallback used:", e);
-    }
-
-    let finalSetting = baseClick;
+    let finalSettingClick = result.finalSettingClick;
     let alertMsg = `✨ เมล็ดอยู่ในช่วงเวลาสกัดที่เหมาะสม (${ageDays} วันหลังคั่ว)`;
 
     // ปรับชดเชยตามอายุเมล็ดกาแฟ (Degassing Effect)
     if (ageDays < 5) {
-        finalSetting += 3;
+        finalSettingClick += 3;
         alertMsg = `⚠️ เมล็ดคั่วใหม่ (${ageDays} วัน) แก๊สยังเยอะ ควรบดหยาบขึ้นป้องกัน Channelling`;
     } else if (ageDays > 30) {
-        finalSetting = Math.max(1, finalSetting - 2);
+        finalSettingClick = Math.max(1, finalSettingClick - 2);
         alertMsg = `ℹ️ เมล็ดคั่วมาแล้ว ${ageDays} วัน เริ่มเก่า ชดเชยโดยการปรับเบอร์บดละเอียดขึ้น`;
     }
 
@@ -111,23 +102,19 @@ function calculateGrind() {
     const adjustReasonEl = document.getElementById('adjustReason');
     const extraAlertEl = document.getElementById('extraAlert');
 
-    if (grindNumEl) grindNumEl.innerText = finalSetting;
-    if (adjustReasonEl) adjustReasonEl.innerText = `อิงตามคั่ว ${roastProfile} และอายุเมล็ด ${ageDays} วัน`;
+    if (grindNumEl) grindNumEl.innerText = finalSettingClick;
+    if (adjustReasonEl) adjustReasonEl.innerText = `อิงตามเครื่องบด ${result.grinderName}, คั่ว ${roastProfile} และอายุเมล็ด ${ageDays} วัน`;
 
     // ดึง Workflow และข้อควรระวังมาแสดงผล
-    let workflowHtml = `
-        <div>• ใช้ RDT สเปรย์พรมน้ำลดไฟฟ้าสถิตก่อนลง Hopper</div>
-        <div>• หมุน Fines Knocker หลังบดเสร็จเพื่อเคลียร์ผงค้าง (~0.1-0.2g)</div>
-    `;
-    
-    if (engineResult && engineResult.workflow && Array.isArray(engineResult.workflow)) {
-        workflowHtml = engineResult.workflow.map(w => `<div>• ${w}</div>`).join('');
+    let workflowHtml = "";
+    if (result.workflow && Array.isArray(result.workflow)) {
+        workflowHtml = result.workflow.map(w => `<div>• ${w}</div>`).join('');
     }
 
     if (extraAlertEl) {
         extraAlertEl.innerHTML = `
             <div>${alertMsg}</div>
-            ${engineResult && engineResult.warning ? `<div style="color: #ef4444; margin-top: 4px;">⚠️ ${engineResult.warning}</div>` : ''}
+            ${result.warning ? `<div style="color: #ef4444; margin-top: 4px;">⚠️ ${result.warning}</div>` : ''}
             <div style="margin-top: 8px; font-size: 0.72rem; text-align: left; background: rgba(0,0,0,0.15); padding: 8px; border-radius: 6px;">
                 <div style="font-weight: bold; color: #f59e0b; margin-bottom: 3px;">💡 Workflow แนะนำ:</div>
                 ${workflowHtml}
@@ -146,7 +133,7 @@ async function saveLogToSupabase() {
     }
 
     const logData = {
-        grinder_model: document.getElementById('grinderSelect') ? document.getElementById('grinderSelect').value : 'timemore_bricks_01s',
+        grinder_model: document.getElementById('grinderSelect').value,
         bean_name: document.getElementById('beanName').value,
         roast_profile: document.getElementById('roastProfile').value,
         roast_date: document.getElementById('roastDate').value || null,
@@ -186,22 +173,30 @@ window.addEventListener('DOMContentLoaded', () => {
     const defaultDate = new Date();
     defaultDate.setDate(defaultDate.getDate() - 7);
     const roastDateEl = document.getElementById('roastDate');
-    if (roastDateEl) roastDateEl.value = defaultDate.toISOString().split('T')[0];
+    if (roastDateEl && !roastDateEl.value) {
+        roastDateEl.value = defaultDate.toISOString().split('T')[0];
+    }
 
     // ผูก Event ให้ฟอร์มคำนวณอัตโนมัติเมื่อมีการเปลี่ยนแปลงค่า
-    const triggerElements = ['grinderSelect', 'roastProfile', 'roastDate'];
-    triggerElements.forEach(id => {
+    ['grinderSelect', 'roastProfile', 'roastDate'].forEach(id => {
         const el = document.getElementById(id);
         if (el) {
             el.addEventListener('change', calculateGrind);
-            el.addEventListener('input', calculateGrind); // รองรับการพิมพ์/กดเปลี่ยนค่าทันที
+            el.addEventListener('input', calculateGrind);
         }
     });
 
-    // ผูกฟังก์ชันเข้ากับ Global window เพื่อให้ปุ่มใน HTML เรียกใช้งานได้ทันที
-    window.fetchWeatherByLocation = fetchWeatherByLocation;
-    window.saveLogToSupabase = saveLogToSupabase;
-    window.calculateGrind = calculateGrind;
+    // ผูก Event ให้ปุ่มบันทึกทำงานอย่างถูกต้องในระบบ Module
+    const saveBtn = document.getElementById('saveLogBtn');
+    if (saveBtn) {
+        saveBtn.addEventListener('click', saveLogToSupabase);
+    }
+
+    // ผูกปุ่มอัปเดตพิกัด GPS
+    const updateGpsBtn = document.getElementById('updateGpsBtn');
+    if (updateGpsBtn) {
+        updateGpsBtn.addEventListener('click', fetchWeatherByLocation);
+    }
 
     // รันการคำนวณและดึงอากาศเมื่อเปิดหน้าเว็บ
     calculateGrind();
