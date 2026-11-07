@@ -16,25 +16,18 @@ if (window.supabase) {
 }
 
 // ==========================================
-// 1. WEATHER & GPS AUTO-FETCH (สภาพอากาศบ้านนอแล)
+// 1. WEATHER & GPS AUTO-FETCH (พร้อมพิกัดสำรองฐานปฏิบัติการบ้านนอแล)
 // ==========================================
 async function fetchWeatherByLocation() {
     const statusEl = document.getElementById('locationStatus');
     const tempValEl = document.getElementById('tempVal');
     const humValEl = document.getElementById('humVal');
 
-    if (!navigator.geolocation) {
-        if (statusEl) statusEl.innerText = "⚠️ Browser ไม่รองรับ Geolocation";
-        return;
-    }
+    // พิกัดหลักฐานปฏิบัติการบ้านนอแล อ.ฝาง จ.เชียงใหม่
+    const norLaeLat = 19.9234; 
+    const norLaeLon = 99.1512;
 
-    if (statusEl) statusEl.innerText = "📍 กำลังดึงพิกัด GPS พื้นที่บ้านนอแล...";
-
-    navigator.geolocation.getCurrentPosition(async (position) => {
-        const lat = position.coords.latitude;
-        const lon = position.coords.longitude;
-        if (statusEl) statusEl.innerText = `✅ พิกัด: ${lat.toFixed(4)}, ${lon.toFixed(4)}`;
-
+    const fetchWeatherAPI = async (lat, lon, sourceLabel) => {
         try {
             const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m`);
             const data = await res.json();
@@ -42,14 +35,33 @@ async function fetchWeatherByLocation() {
             if (data && data.current) {
                 if (tempValEl) tempValEl.innerText = `${data.current.temperature_2m} °C`;
                 if (humValEl) humValEl.innerText = `${data.current.relative_humidity_2m} %`;
+                if (statusEl) {
+                    statusEl.innerText = `✅ สำเร็จ (${sourceLabel}): ${lat.toFixed(4)}, ${lon.toFixed(4)}`;
+                }
             }
         } catch (err) {
             console.error("Weather fetch error:", err);
+            if (statusEl) statusEl.innerText = "⚠️ ไม่สามารถโหลดสภาพอากาศได้";
         }
-    }, (error) => {
-        console.warn("GPS error:", error);
-        if (statusEl) statusEl.innerText = "⚠️ ไม่สามารถเข้าถึง GPS ได้ ใช้ค่ามาตรฐานฐานปฏิบัติการ";
-    }, { timeout: 10000 });
+    };
+
+    if (statusEl) statusEl.innerText = "📍 กำลังเชื่อมต่อสภาพอากาศพื้นที่บ้านนอแล...";
+
+    // ตรวจสอบและดึงพิกัด GPS แบบจำกัดเวลา 3 วินาที (ป้องกันอาการค้างถาวร)
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                fetchWeatherAPI(position.coords.latitude, position.coords.longitude, "GPS มือถือ");
+            }, 
+            (error) => {
+                console.warn("GPS bypassed or denied:", error);
+                fetchWeatherAPI(norLaeLat, norLaeLon, "ฐานปฏิบัติการบ้านนอแล");
+            }, 
+            { timeout: 3000, enableHighAccuracy: false, maximumAge: 60000 }
+        );
+    } else {
+        fetchWeatherAPI(norLaeLat, norLaeLon, "ฐานปฏิบัติการบ้านนอแล");
+    }
 }
 
 // ==========================================
