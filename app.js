@@ -1,6 +1,15 @@
-// Nor Lae Bunker Coffee - BARISTA-OS (Safe Key Management & Logic)
+// Nor Lae Bunker Coffee - BARISTA-OS (Production app.js)
 
-// Read API key from LocalStorage or Input box to avoid committing Secrets to GitHub
+// Supabase Configuration
+const SUPABASE_URL = "https://punvjllkjbejiycbcgxw.supabase.co";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB1bnZqbGxramJlaml5Y2JjZ3h3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQwNjIwNjcsImV4cCI6MjEwOTYzODA2N30.Sn8yDLnO2yn9kFhh9ftHsb_SfWZNr4GKLfOb56dlzn4";
+
+let supabaseClient = null;
+if (typeof supabase !== 'undefined') {
+    supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+}
+
+// Read OpenWeather API key safely from LocalStorage or UI Input Box
 function getOpenWeatherApiKey() {
     const inputKey = document.getElementById("weatherApiKey") ? document.getElementById("weatherApiKey").value.trim() : "";
     return inputKey || localStorage.getItem("OPENWEATHER_API_KEY") || "";
@@ -16,10 +25,10 @@ function saveApiKeyLocally() {
 }
 
 // Global Environment State
-let currentTemp = 16.5;
-let currentHum = 82.0;
+let currentTemp = 16.5; // Default cold altitude temp
+let currentHum = 82.0;  // Default fog humidity
 
-// 1. Weather Fetching via Geolocation API
+// 1. Weather Fetching via Geolocation API & OpenWeatherMap
 async function fetchWeatherByLocation() {
     const statusEl = document.getElementById("locationStatus");
     const apiKey = getOpenWeatherApiKey();
@@ -89,6 +98,7 @@ function calculateGrind() {
     const profile = profileEl.value;
     const roastDateVal = roastDateEl ? roastDateEl.value : null;
 
+    // Timemore Bricks 01S Base Grind Scale (0.01mm/step)
     let baseGrind = 1.8; 
     if (profile === 'light') baseGrind = 1.1;
     if (profile === 'dark') baseGrind = 2.4;
@@ -96,35 +106,37 @@ function calculateGrind() {
     let roastAdjustment = 0.0;
     let alertText = "";
 
+    // Degassing Calculation
     if (roastDateVal) {
         const roastDate = new Date(roastDateVal);
         const today = new Date();
         const diffDays = Math.floor((today - roastDate) / (1000 * 60 * 60 * 24));
 
         if (diffDays >= 0 && diffDays <= 7) {
-            roastAdjustment += 0.25; 
+            roastAdjustment += 0.25; // CO2 High -> Coarser
             alertText += `⚠️ คั่วใหม่ (${diffDays} วัน): บดหยาบขึ้นไล่ก๊าซ | `;
         } else if (diffDays > 21) {
-            roastAdjustment -= 0.2; 
+            roastAdjustment -= 0.2; // Aged Beans -> Finer
             alertText += `⚠️ คั่วนาน (${diffDays} วัน): ลดเบอร์บดเล็กน้อย | `;
         } else {
             alertText += `✨ Peak Flavor Period | `;
         }
     }
 
+    // Weather Compensation Logic
     let weatherAdjustment = 0.0;
     if (currentHum > 70.0) {
-        weatherAdjustment += 0.3; 
+        weatherAdjustment += 0.3; // Dense Fog -> Coarser + 7s Pre-infusion
         alertText += `☁️ ความชื้นสูง (>70% RH): บดหยาบ + Pre-infusion 7s`;
     } else if (currentHum < 40.0) {
-        weatherAdjustment -= 0.1; 
+        weatherAdjustment -= 0.1; // Dry -> Finer + RDT
         alertText += `☀️ อากาศแห้ง (<40% RH): เตือนพ่นสเปรย์ RDT`;
     } else {
         alertText += `🌤️ สภาพอากาศปกติ`;
     }
 
     if (currentTemp < 18.0) {
-        alertText += ` | ❄️ อากาศหนาว (<18°C): เพิ่ม PID Temp +1°C`;
+        alertText += ` | ❄️ อากาศหนาว (<18°C): เพิ่ม PID Temp +1°C (อุ่นด้าม 58mm)`;
     }
 
     let finalGrind = baseGrind + roastAdjustment + weatherAdjustment;
@@ -139,7 +151,45 @@ function calculateGrind() {
     if (alertEl) alertEl.innerText = alertText;
 }
 
-// Auto Load Saved API Key
+// 3. Supabase Log Insertion Function
+async function saveLogToSupabase() {
+    const recEl = document.getElementById("recommendGrind");
+    const yieldEl = document.getElementById("targetYield");
+    const profileEl = document.getElementById("roastProfile");
+    const roastDateEl = document.getElementById("roastDate");
+
+    const grindVal = recEl ? parseFloat(recEl.innerText) : 1.8;
+    const targetVal = yieldEl ? parseFloat(yieldEl.value) : 40.0;
+    const profile = profileEl ? profileEl.value : 'medium';
+    const roastDateVal = roastDateEl ? roastDateEl.value : null;
+
+    if (!supabaseClient) {
+        alert("ยังไม่ได้ตั้งค่าเชื่อมต่อกับ Supabase ให้ถูกต้อง");
+        return;
+    }
+
+    const { data, error } = await supabaseClient
+        .from('brew_logs')
+        .insert([
+            {
+                bean_name: "Nor Lae House Blend",
+                roast_profile: profile,
+                roast_date: roastDateVal,
+                grind_size: grindVal,
+                target_yield_g: targetVal,
+                ambient_temp: currentTemp,
+                ambient_humidity: currentHum
+            }
+        ]);
+
+    if (error) {
+        alert("บันทึกไม่สำเร็จ: " + error.message);
+    } else {
+        alert("บันทึกสถิติช็อต 40g ลง Supabase สำเร็จ!");
+    }
+}
+
+// Auto Load Saved API Key & Initialize UI
 window.onload = () => {
     const savedKey = localStorage.getItem("OPENWEATHER_API_KEY");
     if (savedKey && document.getElementById("weatherApiKey")) {
@@ -153,6 +203,7 @@ window.onload = () => {
     fetchWeatherByLocation();
 };
 
+// Register Service Worker for Offline PWA
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
         navigator.serviceWorker.register('./sw.js')
