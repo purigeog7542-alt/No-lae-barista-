@@ -1,0 +1,133 @@
+/* Tactical Dark Dashboard Theme for Nor Lae Bunker Coffee BARISTA-OS */
+:root {
+    --bg-color: #0f172a;
+    --card-bg: #1e293b;
+    --border-color: #334155;
+    --text-main: #e2e8f0;
+    --text-sub: #94a3b8;
+    --accent: #38bdf8;
+    --warning: #f59e0b;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+    font-family: 'Sarabun', sans-serif, -apple-system, BlinkMacSystemFont;
+    background-color: var(--bg-color);
+    color: var(--text-main);
+    padding: 15px;
+    display: flex;
+    justify-content: center;
+    min-height: 100vh;
+}
+
+.container { width: 100%; max-width: 480px; }
+
+header {
+    border-bottom: 2px solid var(--accent);
+    padding-bottom: 10px;
+    margin-bottom: 15px;
+}
+
+h1 { font-size: 1.3rem; color: var(--accent); letter-spacing: 0.5px; }
+
+.subtitle { font-size: 0.8rem; color: var(--text-sub); margin-top: 2px; }
+
+.card {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 12px 15px;
+    margin-bottom: 12px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+}
+
+.card-title {
+    font-size: 0.9rem;
+    font-weight: bold;
+    color: var(--accent);
+    margin-bottom: 8px;
+    border-bottom: 1px dashed var(--border-color);
+    padding-bottom: 4px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.sensor-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    text-align: center;
+}
+
+.sensor-box {
+    background: var(--bg-color);
+    padding: 10px;
+    border-radius: 6px;
+    border: 1px solid var(--border-color);
+}
+
+.sensor-val { font-size: 1.3rem; font-weight: bold; color: var(--warning); }
+
+.sensor-label { font-size: 0.75rem; color: var(--text-sub); margin-top: 2px; }
+
+label { display: block; font-size: 0.8rem; color: var(--text-sub); margin-top: 8px; }
+
+select, input {
+    width: 100%;
+    background: var(--bg-color);
+    color: var(--text-main);
+    border: 1px solid var(--border-color);
+    padding: 10px;
+    border-radius: 6px;
+    margin-top: 4px;
+    font-size: 0.9rem;
+    outline: none;
+}
+
+select:focus, input:focus { border-color: var(--accent); }
+
+.result-box {
+    background: #090d16;
+    border: 1px solid var(--warning);
+    border-radius: 6px;
+    padding: 12px;
+    text-align: center;
+    margin-top: 10px;
+}
+
+.grind-num { font-size: 2.2rem; font-weight: bold; color: var(--warning); letter-spacing: 1px; }
+
+button {
+    width: 100%;
+    background-color: var(--accent);
+    color: #0f172a;
+    border: none;
+    padding: 12px;
+    border-radius: 6px;
+    font-weight: bold;
+    font-size: 0.95rem;
+    cursor: pointer;
+    margin-top: 12px;
+}
+
+button:active { opacity: 0.8; }
+
+.btn-sm {
+    background: var(--border-color);
+    color: var(--text-main);
+    font-size: 0.7rem;
+    padding: 4px 10px;
+    width: auto;
+    margin: 0;
+    border-radius: 4px;
+}
+
+.footer {
+    text-align: center;
+    font-size: 0.75rem;
+    color: var(--text-sub);
+    margin-top: 20px;
+    padding-bottom: 15px;
+}

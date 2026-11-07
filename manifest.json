@@ -1,0 +1,17 @@
+{
+  "short_name": "Barista OS",
+  "name": "Nor Lae Bunker Coffee - Barista OS",
+  "description": "IoT Grind & Extraction Calibration System for 40ml Shots",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/2935/2935413.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    }
+  ],
+  "start_url": "./index.html",
+  "background_color": "#0f172a",
+  "theme_color": "#38bdf8",
+  "display": "standalone",
+  "orientation": "portrait"
+}

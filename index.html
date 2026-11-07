@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nor Lae Bunker Coffee - Barista OS</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="manifest.json">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>☕ NOR LAE BUNKER COFFEE</h1>
+        <div class="subtitle">BARISTA-OS • Target 40 ml Calibration System</div>
+    </header>
+
+    <!-- Weather & API Config Card -->
+    <div class="card">
+        <div class="card-title">
+            <span>📡 สภาพอากาศตามพิกัดมือถือ (GPS)</span>
+            <button class="btn-sm" onclick="fetchWeatherByLocation()">🔄 อัปเดตพิกัด</button>
+        </div>
+        <div class="sensor-grid">
+            <div class="sensor-box">
+                <div class="sensor-val" id="tempVal">-- °C</div>
+                <div class="sensor-label">อุณหภูมิห้อง</div>
+            </div>
+            <div class="sensor-box">
+                <div class="sensor-val" id="humVal">-- %</div>
+                <div class="sensor-label">ความชื้นสัมพัทธ์ (RH)</div>
+            </div>
+        </div>
+        <div id="locationStatus" style="font-size: 0.7rem; color: var(--text-sub); margin-top: 6px; text-align: center;">กำลังรอพิกัด GPS...</div>
+        
+        <label style="margin-top: 10px;">OpenWeather API Key (ป้อนผ่านหน้าเว็บ):</label>
+        <input type="password" id="weatherApiKey" placeholder="วาง OpenWeather API Key ที่นี่..." onchange="saveApiKeyLocally()">
+    </div>
+
+    <!-- Bean Profile & Config -->
+    <div class="card">
+        <div class="card-title">⚙️ ตั้งค่าโปรไฟล์เมล็ด & การสกัด (Target: 40g)</div>
+        
+        <label>โปรไฟล์การคั่ว (Roast Profile):</label>
+        <select id="roastProfile" onchange="calculateGrind()">
+            <option value="light">คั่วอ่อน (Light Roast) - Base 1.1</option>
+            <option value="medium" selected>คั่วกลาง (Medium Roast) - Base 1.8</option>
+            <option value="dark">คั่วเข้ม (Dark Roast) - Base 2.4</option>
+        </select>
+
+        <label>วันที่คั่วเมล็ดกาแฟ (Roast Date):</label>
+        <input type="date" id="roastDate" onchange="calculateGrind()">
+
+        <label>น้ำหนักเป้าหมายช็อตกาแฟ (Target Yield):</label>
+        <input type="number" id="targetYield" value="40.0" step="0.5">
+    </div>
+
+    <!-- Recommendation Box -->
+    <div class="card">
+        <div class="card-title">💡 คำแนะนำเบอร์บดและเวลาชง</div>
+        <div class="result-box">
+            <div class="sensor-label">เบอร์บดแนะนำ (Timemore Bricks 01S)</div>
+            <div class="grind-num" id="recommendGrind">1.80</div>
+            <div style="font-size: 0.8rem; color: var(--text-main); margin-top: 5px;" id="adjustReason">คำนวณจากสภาพอากาศและวันคั่ว</div>
+        </div>
+        <div id="extraAlert" style="font-size: 0.75rem; color: var(--warning); margin-top: 8px; text-align: center;"></div>
+    </div>
+
+    <!-- Action Button -->
+    <button onclick="saveLogToSupabase()">💾 บันทึกผลการชงลงฐานข้อมูล</button>
+
+    <div class="footer">
+        NOR LAE BUNKER COFFEE • Base Operations & Slow Bar
+    </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
