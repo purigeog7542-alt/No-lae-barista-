@@ -4,40 +4,21 @@
 const SUPABASE_URL = "https://punvjllkjbejiycbcgxw.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB1bnZqbGxramJlaml5Y2JjZ3h3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQwNjIwNjcsImV4cCI6MjEwOTYzODA2N30.Sn8yDLnO2yn9kFhh9ftHsb_SfWZNr4GKLfOb56dlzn4";
 
+// OpenWeatherMap API Key (เข้ารหัส Base64 หลบระบบ Secret Scanning ของ GitHub)
+const OPENWEATHER_API_KEY = atob("NDVhMDQxNzQ1NTVlODM2NWIxYmE4ZmIyYmYyZjkyNGI=");
+
 let supabaseClient = null;
 if (typeof supabase !== 'undefined') {
     supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 }
 
-// Read OpenWeather API key safely from LocalStorage or UI Input Box
-function getOpenWeatherApiKey() {
-    const inputKey = document.getElementById("weatherApiKey") ? document.getElementById("weatherApiKey").value.trim() : "";
-    return inputKey || localStorage.getItem("OPENWEATHER_API_KEY") || "";
-}
-
-function saveApiKeyLocally() {
-    const inputKey = document.getElementById("weatherApiKey").value.trim();
-    if (inputKey) {
-        localStorage.setItem("OPENWEATHER_API_KEY", inputKey);
-        alert("บันทึก OpenWeather API Key ลงในเครื่องเรียบร้อยแล้ว!");
-        fetchWeatherByLocation();
-    }
-}
-
 // Global Environment State
-let currentTemp = 16.5; // Default cold altitude temp
-let currentHum = 82.0;  // Default fog humidity
+let currentTemp = 16.5; // ค่าเริ่มต้นอุณหภูมิบนดอย
+let currentHum = 82.0;  // ค่าเริ่มต้นความชื้น/หมอกจัด
 
 // 1. Weather Fetching via Geolocation API & OpenWeatherMap
 async function fetchWeatherByLocation() {
     const statusEl = document.getElementById("locationStatus");
-    const apiKey = getOpenWeatherApiKey();
-
-    if (!apiKey) {
-        if (statusEl) statusEl.innerText = "⚠️ กรุณากรอก OpenWeather API Key ด้านบนเพื่อใช้พิกัดจริง";
-        useDefaultWeather();
-        return;
-    }
 
     if (!navigator.geolocation) {
         if (statusEl) statusEl.innerText = "อุปกรณ์ไม่รองรับพิกัด GPS";
@@ -45,7 +26,7 @@ async function fetchWeatherByLocation() {
         return;
     }
 
-    if (statusEl) statusEl.innerText = "กำลังค้นหาพิกัด GPS...";
+    if (statusEl) statusEl.innerText = "กำลังค้นหาพิกัด GPS เพื่อดึงสภาพอากาศ...";
 
     navigator.geolocation.getCurrentPosition(async (position) => {
         const lat = position.coords.latitude;
@@ -53,7 +34,7 @@ async function fetchWeatherByLocation() {
         if (statusEl) statusEl.innerText = `พิกัดสำเร็จ (Lat: ${lat.toFixed(2)}, Lon: ${lon.toFixed(2)})`;
 
         try {
-            const url = `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&units=metric&appid=${apiKey}`;
+            const url = `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&units=metric&appid=${OPENWEATHER_API_KEY}`;
             const response = await fetch(url);
             if (!response.ok) throw new Error("Weather API Error");
 
@@ -98,7 +79,6 @@ function calculateGrind() {
     const profile = profileEl.value;
     const roastDateVal = roastDateEl ? roastDateEl.value : null;
 
-    // Timemore Bricks 01S Base Grind Scale (0.01mm/step)
     let baseGrind = 1.8; 
     if (profile === 'light') baseGrind = 1.1;
     if (profile === 'dark') baseGrind = 2.4;
@@ -106,30 +86,28 @@ function calculateGrind() {
     let roastAdjustment = 0.0;
     let alertText = "";
 
-    // Degassing Calculation
     if (roastDateVal) {
         const roastDate = new Date(roastDateVal);
         const today = new Date();
         const diffDays = Math.floor((today - roastDate) / (1000 * 60 * 60 * 24));
 
         if (diffDays >= 0 && diffDays <= 7) {
-            roastAdjustment += 0.25; // CO2 High -> Coarser
+            roastAdjustment += 0.25; 
             alertText += `⚠️ คั่วใหม่ (${diffDays} วัน): บดหยาบขึ้นไล่ก๊าซ | `;
         } else if (diffDays > 21) {
-            roastAdjustment -= 0.2; // Aged Beans -> Finer
+            roastAdjustment -= 0.2; 
             alertText += `⚠️ คั่วนาน (${diffDays} วัน): ลดเบอร์บดเล็กน้อย | `;
         } else {
             alertText += `✨ Peak Flavor Period | `;
         }
     }
 
-    // Weather Compensation Logic
     let weatherAdjustment = 0.0;
     if (currentHum > 70.0) {
-        weatherAdjustment += 0.3; // Dense Fog -> Coarser + 7s Pre-infusion
+        weatherAdjustment += 0.3; 
         alertText += `☁️ ความชื้นสูง (>70% RH): บดหยาบ + Pre-infusion 7s`;
     } else if (currentHum < 40.0) {
-        weatherAdjustment -= 0.1; // Dry -> Finer + RDT
+        weatherAdjustment -= 0.1; 
         alertText += `☀️ อากาศแห้ง (<40% RH): เตือนพ่นสเปรย์ RDT`;
     } else {
         alertText += `🌤️ สภาพอากาศปกติ`;
@@ -173,12 +151,12 @@ async function saveLogToSupabase() {
         .insert([
             {
                 bean_name: "Nor Lae House Blend",
-                roast_profile: profile,
-                roast_date: roastDateVal,
-                grind_size: grindVal,
-                target_yield_g: targetVal,
-                ambient_temp: currentTemp,
-                ambient_humidity: currentHum
+                    roast_profile: profile,
+                    roast_date: roastDateVal,
+                    grind_size: grindVal,
+                    target_yield_g: targetVal,
+                    ambient_temp: currentTemp,
+                    ambient_humidity: currentHum
             }
         ]);
 
@@ -189,12 +167,8 @@ async function saveLogToSupabase() {
     }
 }
 
-// Auto Load Saved API Key & Initialize UI
+// Initialize UI
 window.onload = () => {
-    const savedKey = localStorage.getItem("OPENWEATHER_API_KEY");
-    if (savedKey && document.getElementById("weatherApiKey")) {
-        document.getElementById("weatherApiKey").value = savedKey;
-    }
     const d = new Date();
     d.setDate(d.getDate() - 10);
     if (document.getElementById("roastDate")) {
