@@ -1,4 +1,4 @@
-// Nor Lae Bunker Coffee - BARISTA-OS (Full Database Log Integration)
+// Nor Lae Bunker Coffee - BARISTA-OS (Full Production app.js)
 
 // Supabase Configuration
 const SUPABASE_URL = "https://punvjllkjbejiycbcgxw.supabase.co";
@@ -13,7 +13,7 @@ if (typeof supabase !== 'undefined') {
 let currentTemp = 16.5; 
 let currentHum = 82.0;  
 
-// 1. Weather Fetching via Geolocation API & Open-Meteo
+// 1. Weather Fetching via Geolocation API & Open-Meteo (No API Key Needed)
 async function fetchWeatherByLocation() {
     const statusEl = document.getElementById("locationStatus");
 
@@ -76,6 +76,7 @@ function calculateGrind() {
     const profile = profileEl.value;
     const roastDateVal = roastDateEl ? roastDateEl.value : null;
 
+    // Timemore Bricks 01S Base Grind Scale (0.01mm/step)
     let baseGrind = 1.8; 
     if (profile === 'light') baseGrind = 1.1;
     if (profile === 'dark') baseGrind = 2.4;
@@ -83,6 +84,7 @@ function calculateGrind() {
     let roastAdjustment = 0.0;
     let alertText = "";
 
+    // Degassing Calculation
     if (roastDateVal) {
         const roastDate = new Date(roastDateVal);
         const today = new Date();
@@ -99,6 +101,7 @@ function calculateGrind() {
         }
     }
 
+    // Weather Compensation Logic
     let weatherAdjustment = 0.0;
     if (currentHum > 70.0) {
         weatherAdjustment += 0.3; 
@@ -126,49 +129,60 @@ function calculateGrind() {
     if (alertEl) alertEl.innerText = alertText;
 }
 
-// 3. Supabase Log Insertion (Complete All Columns)
+// 3. Supabase Log Insertion (Complete All Columns & Fixed Null Values)
 async function saveLogToSupabase() {
     if (!supabaseClient) {
         alert("ยังไม่ได้ตั้งค่าเชื่อมต่อกับ Supabase ให้ถูกต้อง");
         return;
     }
 
-    // Helper อ่านค่าและแปลงชนิดข้อมูล
-    const getValue = (id) => {
-        const el = document.getElementById(id);
-        return el ? el.value : null;
-    };
-    const getNumValue = (id) => {
-        const val = getValue(id);
-        return val !== null && val !== "" ? parseFloat(val) : null;
-    };
-
+    // ดึง Element จากหน้าเว็บมาตรวจสอบค่าตรงๆ
+    const beanNameEl = document.getElementById("beanName");
+    const roastProfileEl = document.getElementById("roastProfile");
+    const roastDateEl = document.getElementById("roastDate");
+    const doseGEl = document.getElementById("doseG");
+    const targetYieldEl = document.getElementById("targetYield");
+    const actualYieldEl = document.getElementById("actualYieldG");
+    const preInfusionEl = document.getElementById("preInfusionSec");
+    const shotTimeEl = document.getElementById("shotTimeSec");
+    const tasteRatingEl = document.getElementById("tasteRating");
     const recEl = document.getElementById("recommendGrind");
+
     const grindVal = recEl ? parseFloat(recEl.innerText) : 1.8;
 
-    // โครงสร้าง Payload ที่แมปตรงกับทุกคอลัมน์ใน Supabase Schema
+    // ฟังก์ชันแปลงค่าตัวเลข ป้องกันส่งค่าว่างเปล่าเป็น String จนทำให้ฐานข้อมูลเป็น NULL
+    const parseNum = (el) => {
+        if (!el || el.value === "" || el.value === undefined) return null;
+        const num = parseFloat(el.value);
+        return isNaN(num) ? null : num;
+    };
+
     const logData = {
-        bean_name: getValue("beanName") || "Nor Lae House Blend",
-        roast_profile: getValue("roastProfile"),
-        roast_date: getValue("roastDate") || null,
+        bean_name: beanNameEl && beanNameEl.value ? beanNameEl.value : "Nor Lae House Blend",
+        roast_profile: roastProfileEl ? roastProfileEl.value : "medium",
+        roast_date: roastDateEl && roastDateEl.value ? roastDateEl.value : null,
         grind_size: grindVal,
-        dose_g: getNumValue("doseG") || 18.0,
-        target_yield_g: getNumValue("targetYield") || 40.0,
-        actual_yield_g: getNumValue("actualYieldG"),
-        pre_infusion_sec: getNumValue("preInfusionSec"),
-        shot_time_sec: getNumValue("shotTimeSec"),
+        dose_g: parseNum(doseGEl) ?? 18.0,
+        target_yield_g: parseNum(targetYieldEl) ?? 40.0,
+        actual_yield_g: parseNum(actualYieldEl),
+        pre_infusion_sec: parseNum(preInfusionEl),
+        shot_time_sec: parseNum(shotTimeEl),
         ambient_temp: currentTemp,
         ambient_humidity: currentHum,
-        taste_rating: getValue("tasteRating") || null
+        taste_rating: tasteRatingEl && tasteRatingEl.value ? tasteRatingEl.value : null
     };
+
+    console.log("📤 Payload ที่ส่งเข้า Supabase:", logData);
 
     const { data, error } = await supabaseClient
         .from('brew_logs')
         .insert([logData]);
 
     if (error) {
+        console.error("❌ Supabase Insert Error:", error);
         alert("บันทึกไม่สำเร็จ: " + error.message);
     } else {
+        console.log("✅ Insert Success:", data);
         alert("บันทึกข้อมูลสกัดช็อตสมบูรณ์ทุกคอลัมน์ลง Supabase เรียบร้อยแล้ว!");
     }
 }
