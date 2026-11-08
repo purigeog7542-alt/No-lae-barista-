@@ -84,14 +84,14 @@ function calculateGrind() {
     const currentTemp = tempValEl ? parseFloat(tempValEl.innerText) || 25 : 25;
     const currentHum = humValEl ? parseFloat(humValEl.innerText) || 60 : 60;
 
-    let baseClicks = 22; 
+    let baseClicks = 26; 
     
     if (selectedRange === 'Extra-fine') baseClicks = 5;
     else if (selectedRange === 'Fine') baseClicks = 12;
-    else if (selectedRange === 'Medium-fine') baseClicks = 22; 
-    else if (selectedRange === 'Medium') baseClicks = 38;      
+    else if (selectedRange === 'Medium-fine') baseClicks = 26;  // 👈 ปรับเป็น 26 คลิกสำหรับช่วงเช้า
+    else if (selectedRange === 'Medium') baseClicks = 42;      
     else if (selectedRange === 'Medium-coarse') baseClicks = 85; 
-    else if (selectedRange === 'Coarse') baseClicks = 135;     
+    else if (selectedRange === 'Coarse') baseClicks = 135;   
 
     let roastNote = "คั่วกลาง (Medium Roast)";
     if (roastProfile === 'light') {
