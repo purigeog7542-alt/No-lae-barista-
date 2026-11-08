@@ -163,7 +163,7 @@ function calculateGrind() {
 }
 
 // ==========================================
-// 5. SUPABASE LOG STORAGE (ฉบับสมบูรณ์ ป้องกัน Error)
+// 5. SUPABASE LOG STORAGE (พร้อมระบบบันทึกสำรองในเครื่องกรณีเน็ตบล็อก)
 // ==========================================
 async function saveLogToSupabase() {
     const grindText = document.getElementById('recommendGrind').innerText;
@@ -186,7 +186,7 @@ async function saveLogToSupabase() {
     };
 
     if (!supabaseClient) {
-        alert('⚠️ ระบบ Supabase Client ยังไม่พร้อมใช้งาน');
+        saveToLocalFallback(logData);
         return;
     }
 
@@ -195,15 +195,28 @@ async function saveLogToSupabase() {
         if (error) throw error;
         
         alert('✅ บันทึกผลการสกัดลง Supabase สำเร็จ!');
-        
-        document.getElementById('actualYieldG').value = '';
-        document.getElementById('preInfusionSec').value = '';
-        document.getElementById('shotTimeSec').value = '';
-        document.getElementById('tasteRating').value = '';
+        resetLogForm();
     } catch (err) {
-        console.error("Supabase insert error:", err);
-        alert('❌ บันทึกไม่สำเร็จ: ' + err.message);
+        console.warn("Supabase network blocked or offline, saving locally...", err);
+        // เมื่อเกิดข้อผิดพลาดจากเครือข่ายหรือ Failed to fetch จะสลับมาเก็บลงเครื่องอัตโนมัติ
+        saveToLocalFallback(logData);
     }
+}
+
+function saveToLocalFallback(logData) {
+    let localLogs = JSON.parse(localStorage.getItem('brew_logs_offline') || '[]');
+    localLogs.push(logData);
+    localStorage.setItem('brew_logs_offline', JSON.stringify(localLogs));
+    alert('⚠️ เครือข่ายบล็อกเซิร์ฟเวอร์: ระบบบันทึกข้อมูลเก็บไว้ในหน่วยความจำเครื่อง (LocalStorage) เรียบร้อยแล้ว');
+    resetLogForm();
+}
+
+function resetLogForm() {
+    document.getElementById('actualYieldG').value = '';
+    document.getElementById('preInfusionSec').value = '';
+    document.getElementById('shotTimeSec').value = '';
+    document.getElementById('tasteRating').value = '';
+}
 }
 function saveToLocalFallback(logData) {
     let localLogs = JSON.parse(localStorage.getItem('brew_logs_offline') || '[]');
