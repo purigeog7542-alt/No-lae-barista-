@@ -44,8 +44,6 @@
         <label>เลือกเครื่องบด (grinder_model):</label>
         <select id="grinderSelect">
             <option value="timemore_bricks_01s">Timemore Bricks 01S (40mm S2C040 Conical)</option>
-            <option value="timemore_sculptor_01s">Timemore Sculptor 01S (Flat Burr)</option>
-            <option value="mischief_m40">Mischief M40 (Red Click Hand Grinder)</option>
         </select>
 
         <label>ชื่อเมล็ดกาแฟ (bean_name):</label>
@@ -70,6 +68,21 @@
                 <label>เป้าหมาย (target_yield_g):</label>
                 <input type="number" id="targetYield" value="40.0" step="0.5">
             </div>
+        </div>
+    </div>
+
+    <!-- Select Range Card (สไตล์โมเดิร์นตามตัวอย่าง) -->
+    <div class="card select-range-card">
+        <div class="card-title">
+            <span>⚙️ ระดับการบด (Select Range)</span>
+            <span class="pro-badge">Pro</span>
+        </div>
+        
+        <div class="range-selector-trigger" onclick="openRangeModal()">
+            <div class="selected-range-info">
+                <span id="currentSelectedRange">Medium-fine</span>
+            </div>
+            <span class="arrow-icon">▼</span>
         </div>
     </div>
 
@@ -115,15 +128,42 @@
     <!-- Action Button -->
     <button id="saveLogBtn" type="button">💾 บันทึกผลการชงลงฐานข้อมูล</button>
 
-
-
-
     <div class="footer">
         NOR LAE BUNKER COFFEE • Base Operations & Slow Bar
     </div>
 </div>
 
-<!-- โหลดไฟล์ JavaScript หลักแบบ type="module" เพื่อให้เชื่อมโยงกับ grindersDatabase.js และ baristaLogicEngine.js ได้ -->
+<!-- Modal สำหรับเลือก Range (ซ่อนไว้ก่อนจนกว่าจะกด) -->
+<div id="rangeModal" class="modal-overlay" style="display: none;">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Select Range</h3>
+            <span class="close-btn" onclick="closeRangeModal()">✕</span>
+        </div>
+        <div class="range-options-list">
+            <div class="range-option-item" onclick="selectRange('Extra-fine')">
+                <span>Extra-fine</span> <span class="pro-badge">Pro</span>
+            </div>
+            <div class="range-option-item" onclick="selectRange('Fine')">
+                <span>Fine</span> <span class="pro-badge">Pro</span>
+            </div>
+            <div class="range-option-item active" onclick="selectRange('Medium-fine')">
+                <span>Medium-fine</span>
+            </div>
+            <div class="range-option-item" onclick="selectRange('Medium')">
+                <span>Medium</span> <span class="pro-badge">Pro</span>
+            </div>
+            <div class="range-option-item" onclick="selectRange('Medium-coarse')">
+                <span>Medium-coarse</span> <span class="pro-badge">Pro</span>
+            </div>
+            <div class="range-option-item" onclick="selectRange('Coarse')">
+                <span>Coarse</span> <span class="pro-badge">Pro</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- โหลดไฟล์ JavaScript หลัก -->
 <script src="app.js"></script>
 </body>
 </html>
