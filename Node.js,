@@ -1,0 +1,37 @@
+const express = require('express');
+const { createClient } = require('@supabase/supabase-js');
+const cors = require('cors');
+
+const app = express();
+app.use(express.json());
+app.use(cors());
+
+// ตั้งค่าการเชื่อมต่อ Supabase ฝั่ง Server
+const SUPABASE_URL = 'https://punvjllkjbeziycbcgxw.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB1bnZqbGxramJlaml5Y2JjZ3h3Iiwicm9sZSI6InB1bnZhbjEiLCJpYXQiOjE3OTQwNjIwNjcsImV4cCI6MjEwOTYzODA2N30.Sn8yDLnO2yn9kFhh9ftHsb_SfWZNr4GKLfOb56dlzn4';
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// API Endpoint สำหรับรอรับข้อมูลจาก ESP32
+app.post('/api/upload-sensor', async (req, res) => {
+    const { device_id, temperature, humidity, pressure } = req.body;
+
+    console.log(`📥 ได้รับข้อมูลจาก ESP32 [${device_id}] -> Temp: ${temperature}°C, Hum: ${humidity}%`);
+
+    // บันทึกลงตาราง environmental_logs ใน Supabase
+    const { data, error } = await supabase
+        .from('environmental_logs')
+        .insert([{ device_id, temperature, humidity, pressure }]);
+
+    if (error) {
+        console.error('❌ บันทึกลง Supabase ไม่สำเร็จ:', error);
+        return res.status(500).json({ success: false, error: error.message });
+    }
+
+    console.log('✅ บันทึกลง Supabase สำเร็จ!');
+    res.status(200).json({ success: true, data });
+});
+
+// รันเซิร์ฟเวอร์ที่พอร์ต 3000
+app.listen(3000, () => {
+    console.log('🚀 Barista-OS Gateway Server running on port 3000');
+});
