@@ -13,7 +13,6 @@ const BRICKS_CONFIG = {
 // ==========================================
 // 2. SUPABASE CONFIGURATION
 // ==========================================
-// ใช้ URL แบบไม่มี /rest/v1/ ต่อท้าย ปล่อยให้ Supabase Client จัดการเส้นทางเอง
 const SUPABASE_URL = 'https://punvjllkjbejiycbcgxw.supabase.co'; 
 const SUPABASE_ANON_KEY = 'sb_publishable_yTVL3m4ioYQZ6i46XxIRHw_l0Z4iJ7Y';
 
@@ -21,6 +20,7 @@ let supabaseClient = null;
 if (window.supabase) {
     supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 }
+
 // ==========================================
 // 3. WEATHER & SENSOR FROM SUPABASE (ดึงค่าจาก ESP32 สดๆ)
 // ==========================================
@@ -29,7 +29,7 @@ async function fetchSensorFromSupabase() {
     const tempValEl = document.getElementById('tempVal');
     const humValEl = document.getElementById('humVal');
 
-    if (statusEl) statusEl.innerText = "📡 กำลังเชื่อมต่อเซ็นเซอร์ ESP32 ในกล่อง...";
+    if (statusEl) statusEl.innerText = "📡 กำลังเชื่อมต่อเซ็นเซอร์ ESP32 บนดอย...";
 
     if (!supabaseClient) {
         if (statusEl) statusEl.innerText = "⚠️ ไม่พบการเชื่อมต่อ Supabase";
@@ -37,7 +37,6 @@ async function fetchSensorFromSupabase() {
     }
 
     try {
-        // ดึงข้อมูลแถวล่าสุดจากตาราง environmental_logs ที่ส่งมาจาก ESP32
         const { data, error } = await supabaseClient
             .from('environmental_logs')
             .select('temperature, humidity, created_at, device_id')
@@ -56,7 +55,7 @@ async function fetchSensorFromSupabase() {
                 statusEl.innerText = `✅ เชื่อมต่อ ESP32 สำเร็จ (${latest.device_id || 'BME280'}): อัปเดตล่าสุด ${updateTime}`;
             }
 
-            // คำนวณเบอร์บดใหม่ทันทีตามค่าเซ็นเซอร์สด
+            // คำนวณเบอร์บดใหม่ทันทีตามสภาพอากาศบนดอย
             calculateGrind();
         } else {
             if (statusEl) statusEl.innerText = "⚠️ ยังไม่มีข้อมูลจากเซ็นเซอร์ ESP32 (รอส่งข้อมูลชุดแรก)";
@@ -68,7 +67,7 @@ async function fetchSensorFromSupabase() {
 }
 
 // ==========================================
-// 4. DYNAMIC GRIND CALCULATION (วิเคราะห์ค่าจริงอัตโนมัติ)
+// 4. DYNAMIC GRIND CALCULATION (ปรับเงื่อนไขให้สอดคล้องกับร้านบนดอย)
 // ==========================================
 function calculateGrind() {
     const roastProfileEl = document.getElementById('roastProfile');
@@ -81,15 +80,15 @@ function calculateGrind() {
     const roastDateVal = roastDateEl ? roastDateEl.value : '';
     const selectedRange = currentRangeEl ? currentRangeEl.innerText.trim() : 'Medium-fine';
     
-    const currentTemp = tempValEl ? parseFloat(tempValEl.innerText) || 25 : 25;
-    const currentHum = humValEl ? parseFloat(humValEl.innerText) || 60 : 60;
+    const currentTemp = tempValEl ? parseFloat(tempValEl.innerText) || 20 : 20; // ค่าเริ่มต้นอุณหียุมิบนดอย
+    const currentHum = humValEl ? parseFloat(humValEl.innerText) || 70 : 70;
 
     let baseClicks = 26; 
     
     if (selectedRange === 'Extra-fine') baseClicks = 5;
     else if (selectedRange === 'Fine') baseClicks = 12;
-    else if (selectedRange === 'Medium-fine') baseClicks = 26;  // 👈 ปรับเป็น 26 คลิกสำหรับช่วงเช้า
-    else if (selectedRange === 'Medium') baseClicks = 42;      
+    else if (selectedRange === 'Medium-fine') baseClicks = 26; 
+    else if (selectedRange === 'Medium') baseClicks -> 42;      
     else if (selectedRange === 'Medium-coarse') baseClicks = 85; 
     else if (selectedRange === 'Coarse') baseClicks = 135;   
 
@@ -111,17 +110,27 @@ function calculateGrind() {
     }
 
     let weatherEffectNote = "";
-    if (currentTemp > 28) {
+    
+    // 🏔️ [เงื่อนไขเฉพาะร้านบนดอย]:
+    // 1. อากาศหนาวเย็นบนดอย (< 18°C): โลหะของเฟืองบดจะหดตัวเล็กน้อยและเมล็ดกาแฟมีความกรอบขึ้น ส่งผลให้ผงกาแฟละเอียดขึ้นโดยธรรมชาติ จึงต้องปรับเบอร์บดให้ "หยาบขึ้น" เพื่อไม่ให้ช็อตอุดตัน
+    if (currentTemp < 18) {
+        baseClicks += 2;
+        weatherEffectNote += `❄️ อากาศหนาวบนดอย (${currentTemp}°C) ปรับหยาบขึ้น 2 คลิก | `;
+    } else if (currentTemp < 22) {
         baseClicks += 1;
-        weatherEffectNote += `🌡️ อากาศร้อน (${currentTemp}°C) ปรับหยาบขึ้น 1 คลิก | `;
-    } else if (currentTemp < 20) {
+        weatherEffectNote += `⛅ อากาศเย็น (${currentTemp}°C) ปรับหยาบขึ้น 1 คลิก | `;
+    } else if (currentTemp > 28) {
         baseClicks -= 1;
-        weatherEffectNote += `❄️ อากาศเย็น (${currentTemp}°C) ปรับละเอียดขึ้น 1 คลิก | `;
+        weatherEffectNote += `🌡️ อากาศร้อน (${currentTemp}°C) ปรับละเอียดขึ้น 1 คลิก | `;
     }
 
-    if (currentHum > 80) {
+    // 2. ความชื้นสูง/หมอกลงจัดบนดอย (> 85%): เมล็ดกาแฟและผงกาแฟจะดูดซับความชื้นในอากาศได้ง่ายมาก ทำให้เกิด Channeling น้ำไหลผ่านยาก ระบบจะชดเชยด้วยการปรับ "หยาบขึ้น"
+    if (currentHum > 85) {
+        baseClicks += 2;
+        weatherEffectNote += `🌫️ หมอกลงจัด/ความชื้นสูงมาก (${currentHum}%) ปรับหยาบขึ้น 2 คลิก ป้องกันผงกาแฟจับตัว`;
+    } else if (currentHum > 75) {
         baseClicks += 1;
-        weatherEffectNote += `💧 ความชื้นสูง (${currentHum}%) ป้องกันผงกาแฟเกาะตัว`;
+        weatherEffectNote += `💧 ความชื้นสูงบนดอย (${currentHum}%) ปรับหยาบขึ้น 1 คลิก`;
     }
 
     let alertMsg = `✨ เมล็ดอยู่ในช่วงเวลาสกัดที่เหมาะสม (${ageDays} วันหลังคั่ว)`;
@@ -142,7 +151,7 @@ function calculateGrind() {
 
     if (grindNumEl) grindNumEl.innerText = `${finalClicks} คลิก`;
     if (adjustReasonEl) {
-        adjustReasonEl.innerText = `ช่วง: ${selectedRange} | ${roastNote}, อายุเมล็ด ${ageDays} วัน\nสภาพอากาศ (ESP32): ${currentTemp}°C / ${currentHum}%`;
+        adjustReasonEl.innerText = `ช่วง: ${selectedRange} | ${roastNote}, อายุเมล็ด ${ageDays} วัน\nสภาพอากาศบนดอย (ESP32): ${currentTemp}°C / ${currentHum}%`;
     }
 
     let workflowHtml = BRICKS_CONFIG.workflow.map(w => `<div>• ${w}</div>`).join('');
@@ -160,7 +169,7 @@ function calculateGrind() {
 }
 
 // ==========================================
-// 5. SUPABASE LOG STORAGE (พร้อมระบบสำรอง LocalStorage)
+// 5. SUPABASE LOG STORAGE (พร้อมระบบสำรอง LocalStorage ปกติ)
 // ==========================================
 async function saveLogToSupabase() {
     const grindText = document.getElementById('recommendGrind').innerText;
@@ -193,6 +202,7 @@ async function saveLogToSupabase() {
         
         alert('✅ บันทึกผลการสกัดลง Supabase สำเร็จ!');
         resetLogForm();
+        updateNextShotUI();
     } catch (err) {
         console.warn("Supabase network blocked or offline, saving locally...", err);
         saveToLocalFallback(logData);
@@ -203,7 +213,7 @@ function saveToLocalFallback(logData) {
     let localLogs = JSON.parse(localStorage.getItem('brew_logs_offline') || '[]');
     localLogs.push(logData);
     localStorage.setItem('brew_logs_offline', JSON.stringify(localLogs));
-    alert('⚠️ เครือข่ายบล็อกเซิร์ฟเวอร์: ระบบบันทึกข้อมูลเก็บไว้ในหน่วยความจำเครื่อง (LocalStorage) เรียบร้อยแล้ว');
+    alert('⚠️ เครือข่ายขัดข้อง: ระบบบันทึกข้อมูลเก็บไว้ในหน่วยความจำเครื่อง (LocalStorage) เรียบร้อยแล้ว');
     resetLogForm();
 }
 
@@ -264,18 +274,18 @@ function analyzeNextShotPrediction() {
     let deltaPreInfusion = 0;
     let diagnosticAdvice = "";
 
-    if (tasteRating === 'Sour' || shotTimeSec < 25) {
+    if (tasteRating === 'sour' || shotTimeSec < 25) {
         deltaClicks = -2; 
         deltaPreInfusion = +2; 
-        diagnosticAdvice = "🍋 ช็อตที่แล้วไหลเร็ว/เปรี้ยวเกินไป: แนะนำให้บดละเอียดขึ้น 2 คลิก และเพิ่มเวลาพรีอินฟิวชันอีก 2 วินาที";
-    } else if (tasteRating === 'Bitter' || tasteRating === 'Astringent' || shotTimeSec > 35) {
+        diagnosticAdvice = "🍋 ช็อตที่แล้วไหลเร็ว/เปรี้ยวโดด: แนะนำให้บดละเอียดขึ้น 2 คลิก และเพิ่มเวลาพรีอินฟิวชันอีก 2 วินาที";
+    } else if (tasteRating === 'bitter' || tasteRating === 'astringent' || shotTimeSec > 35) {
         deltaClicks = +2; 
         deltaPreInfusion = -1; 
         diagnosticAdvice = "☕ ช็อตที่แล้วไหลช้า/ขมฝาด: แนะนำให้บดหยาบขึ้น 2 คลิก และลดเวลาพรีอินฟิวชันลง 1 วินาที";
-    } else if (tasteRating === 'Optimal') {
+    } else if (tasteRating === 'balanced') {
         deltaClicks = 0;
         deltaPreInfusion = 0;
-        diagnosticAdvice = "✨ ช็อตที่แล้วสมบูรณ์แบบ (Optimal Balance): ใช้ค่าพารามิเตอร์นี้ต่อได้เลย";
+        diagnosticAdvice = "✨ ช็อตที่แล้วสมบูรณ์แบบ (Balanced): ใช้ค่าพารามิเตอร์นี้ต่อได้เลยครับ";
     }
 
     let nextGrindClicks = Math.min(145, Math.max(1, currentClicks + deltaClicks));
@@ -331,7 +341,6 @@ window.addEventListener('DOMContentLoaded', () => {
 
     const updateGpsBtn = document.getElementById('updateGpsBtn');
     if (updateGpsBtn) {
-        // เปลี่ยนปุ่มอัปเดตพิกัด ให้เป็นการดึงค่าสดจากเซ็นเซอร์ ESP32 แทน
         updateGpsBtn.addEventListener('click', fetchSensorFromSupabase);
         updateGpsBtn.innerText = "🔄 รีเฟรชเซ็นเซอร์";
     }
@@ -347,6 +356,6 @@ window.addEventListener('DOMContentLoaded', () => {
     // ดึงค่าเซ็นเซอร์จาก Supabase ทันทีที่โหลดหน้าเว็บ
     fetchSensorFromSupabase();
     
-    // ตั้งเวลาดึงข้อมูลอัตโนมัติทุกๆ 30 วินาทีเพื่อให้หน้าเว็บอัปเดตแบบ Real-time
+    // ตั้งเวลาดึงข้อมูลอัตโนมัติทุกๆ 30 วินาที
     setInterval(fetchSensorFromSupabase, 30000);
 });
