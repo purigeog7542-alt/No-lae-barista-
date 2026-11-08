@@ -14,7 +14,7 @@ const BRICKS_CONFIG = {
 // 2. SUPABASE CONFIGURATION
 // ==========================================
 const SUPABASE_URL = 'https://punvjllkjbeziycbcgxw.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB1bnZqbGxramJlaml5Y2JjZ3h3Iiwicm9sZSI6InB1bnZqbGxramJlaml5Y2JjZ3h3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQwNjIwNjcsImV4cCI6MjEwOTYzODA2N30.Sn8yDLnO2yn9kFhh9ftHsb_SfWZNr4GKLfOb56dlzn4';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB1bnZqbGxramJlaml5Y2JjZ3h3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQwNjIwNjcsImV4cCI6MjEwOTYzODA2N30.Sn8yDLnO2yn9kFhh9ftHsb_SfWZNr4GKLfOb56dlzn4';
 
 let supabaseClient = null;
 if (window.supabase) {
@@ -163,7 +163,7 @@ function calculateGrind() {
 }
 
 // ==========================================
-// 5. SUPABASE LOG STORAGE (พร้อมระบบบันทึกสำรองในเครื่องกรณีเน็ตบล็อก)
+// 5. SUPABASE LOG STORAGE (พร้อมระบบสำรอง LocalStorage อัตโนมัติ)
 // ==========================================
 async function saveLogToSupabase() {
     const grindText = document.getElementById('recommendGrind').innerText;
@@ -198,7 +198,6 @@ async function saveLogToSupabase() {
         resetLogForm();
     } catch (err) {
         console.warn("Supabase network blocked or offline, saving locally...", err);
-        // เมื่อเกิดข้อผิดพลาดจากเครือข่ายหรือ Failed to fetch จะสลับมาเก็บลงเครื่องอัตโนมัติ
         saveToLocalFallback(logData);
     }
 }
@@ -208,21 +207,6 @@ function saveToLocalFallback(logData) {
     localLogs.push(logData);
     localStorage.setItem('brew_logs_offline', JSON.stringify(localLogs));
     alert('⚠️ เครือข่ายบล็อกเซิร์ฟเวอร์: ระบบบันทึกข้อมูลเก็บไว้ในหน่วยความจำเครื่อง (LocalStorage) เรียบร้อยแล้ว');
-    resetLogForm();
-}
-
-function resetLogForm() {
-    document.getElementById('actualYieldG').value = '';
-    document.getElementById('preInfusionSec').value = '';
-    document.getElementById('shotTimeSec').value = '';
-    document.getElementById('tasteRating').value = '';
-}
-}
-function saveToLocalFallback(logData) {
-    let localLogs = JSON.parse(localStorage.getItem('brew_logs_offline') || '[]');
-    localLogs.push(logData);
-    localStorage.setItem('brew_logs_offline', JSON.stringify(localLogs));
-    alert('⚠️ ไม่สามารถเชื่อมต่อ Supabase ได้ ระบบบันทึกข้อมูลเก็บไว้ในเครื่อง (LocalStorage) เรียบร้อยแล้ว');
     resetLogForm();
 }
 
