@@ -22,51 +22,48 @@ if (window.supabase) {
 }
 
 // ==========================================
-// 3. WEATHER & GPS (ดึงสภาพอากาศจริงอัตโนมัติ)
+// 3. WEATHER & SENSOR FROM SUPABASE (ดึงค่าจาก ESP32 สดๆ)
 // ==========================================
-async function fetchWeatherByLocation() {
+async function fetchSensorFromSupabase() {
     const statusEl = document.getElementById('locationStatus');
     const tempValEl = document.getElementById('tempVal');
     const humValEl = document.getElementById('humVal');
 
-    const norLaeLat = 19.9234; 
-    const norLaeLon = 99.1512;
+    if (statusEl) statusEl.innerText = "📡 กำลังเชื่อมต่อเซ็นเซอร์ ESP32 ในกล่อง...";
 
-    const fetchWeatherAPI = async (lat, lon, sourceLabel) => {
-        try {
-            const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m`);
-            const data = await res.json();
+    if (!supabaseClient) {
+        if (statusEl) statusEl.innerText = "⚠️ ไม่พบการเชื่อมต่อ Supabase";
+        return;
+    }
+
+    try {
+        // ดึงข้อมูลแถวล่าสุดจากตาราง environmental_logs ที่ส่งมาจาก ESP32
+        const { data, error } = await supabaseClient
+            .from('environmental_logs')
+            .select('temperature, humidity, created_at, device_id')
+            .order('created_at', { ascending: false })
+            .limit(1);
+
+        if (error) throw error;
+
+        if (data && data.length > 0) {
+            const latest = data[0];
+            if (tempValEl) tempValEl.innerText = `${latest.temperature.toFixed(1)} °C`;
+            if (humValEl) humValEl.innerText = `${latest.humidity.toFixed(1)} %`;
             
-            if (data && data.current) {
-                if (tempValEl) tempValEl.innerText = `${data.current.temperature_2m} °C`;
-                if (humValEl) humValEl.innerText = `${data.current.relative_humidity_2m} %`;
-                if (statusEl) {
-                    statusEl.innerText = `✅ สำเร็จ (${sourceLabel}): ${lat.toFixed(4)}, ${lon.toFixed(4)}`;
-                }
-                calculateGrind();
+            const updateTime = new Date(latest.created_at).toLocaleTimeString('th-TH');
+            if (statusEl) {
+                statusEl.innerText = `✅ เชื่อมต่อ ESP32 สำเร็จ (${latest.device_id || 'BME280'}): อัปเดตล่าสุด ${updateTime}`;
             }
-        } catch (err) {
-            console.error("Weather fetch error:", err);
-            if (statusEl) statusEl.innerText = "⚠️ โหลดสภาพอากาศสำรองสำเร็จ";
-            fetchWeatherAPI(norLaeLat, norLaeLon, "ฐานปฏิบัติการบ้านนอแล (Fallback)");
+
+            // คำนวณเบอร์บดใหม่ทันทีตามค่าเซ็นเซอร์สด
+            calculateGrind();
+        } else {
+            if (statusEl) statusEl.innerText = "⚠️ ยังไม่มีข้อมูลจากเซ็นเซอร์ ESP32 (รอส่งข้อมูลชุดแรก)";
         }
-    };
-
-    if (statusEl) statusEl.innerText = "📍 กำลังเชื่อมต่อสภาพอากาศ...";
-
-    if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-            (position) => {
-                fetchWeatherAPI(position.coords.latitude, position.coords.longitude, "GPS มือถือ");
-            }, 
-            (error) => {
-                console.warn("GPS bypass:", error);
-                fetchWeatherAPI(norLaeLat, norLaeLon, "ฐานปฏิบัติการบ้านนอแล");
-            }, 
-            { timeout: 1500, enableHighAccuracy: false, maximumAge: 60000 }
-        );
-    } else {
-        fetchWeatherAPI(norLaeLat, norLaeLon, "ฐานปฏิบัติการบ้านนอแล");
+    } catch (err) {
+        console.error("Supabase sensor fetch error:", err);
+        if (statusEl) statusEl.innerText = "⚠️ โหลดข้อมูลเซ็นเซอร์ไม่สำเร็จ";
     }
 }
 
@@ -145,7 +142,7 @@ function calculateGrind() {
 
     if (grindNumEl) grindNumEl.innerText = `${finalClicks} คลิก`;
     if (adjustReasonEl) {
-        adjustReasonEl.innerText = `ช่วง: ${selectedRange} | ${roastNote}, อายุเมล็ด ${ageDays} วัน\nสภาพอากาศ: ${currentTemp}°C / ${currentHum}%`;
+        adjustReasonEl.innerText = `ช่วง: ${selectedRange} | ${roastNote}, อายุเมล็ด ${ageDays} วัน\nสภาพอากาศ (ESP32): ${currentTemp}°C / ${currentHum}%`;
     }
 
     let workflowHtml = BRICKS_CONFIG.workflow.map(w => `<div>• ${w}</div>`).join('');
@@ -267,20 +264,15 @@ function analyzeNextShotPrediction() {
     let deltaPreInfusion = 0;
     let diagnosticAdvice = "";
 
-    // เปรี้ยวโดด หรือ ไหลเร็วเกินไป (Under-extracted)
     if (tasteRating === 'Sour' || shotTimeSec < 25) {
-        deltaClicks = -2; // บดละเอียดขึ้น
-        deltaPreInfusion = +2; // เพิ่มเวลาพรีอินฟิวชัน
+        deltaClicks = -2; 
+        deltaPreInfusion = +2; 
         diagnosticAdvice = "🍋 ช็อตที่แล้วไหลเร็ว/เปรี้ยวเกินไป: แนะนำให้บดละเอียดขึ้น 2 คลิก และเพิ่มเวลาพรีอินฟิวชันอีก 2 วินาที";
-    } 
-    // ขมไหม้, ฝาด หรือ ไหลช้าเกินไป (Over-extracted / Channeling)
-    else if (tasteRating === 'Bitter' || tasteRating === 'Astringent' || shotTimeSec > 35) {
-        deltaClicks = +2; // บดหยาบขึ้น
-        deltaPreInfusion = -1; // ลดเวลาพรีอินฟิวชัน
+    } else if (tasteRating === 'Bitter' || tasteRating === 'Astringent' || shotTimeSec > 35) {
+        deltaClicks = +2; 
+        deltaPreInfusion = -1; 
         diagnosticAdvice = "☕ ช็อตที่แล้วไหลช้า/ขมฝาด: แนะนำให้บดหยาบขึ้น 2 คลิก และลดเวลาพรีอินฟิวชันลง 1 วินาที";
-    } 
-    // สมบูรณ์แบบ
-    else if (tasteRating === 'Optimal') {
+    } else if (tasteRating === 'Optimal') {
         deltaClicks = 0;
         deltaPreInfusion = 0;
         diagnosticAdvice = "✨ ช็อตที่แล้วสมบูรณ์แบบ (Optimal Balance): ใช้ค่าพารามิเตอร์นี้ต่อได้เลย";
@@ -339,10 +331,11 @@ window.addEventListener('DOMContentLoaded', () => {
 
     const updateGpsBtn = document.getElementById('updateGpsBtn');
     if (updateGpsBtn) {
-        updateGpsBtn.addEventListener('click', fetchWeatherByLocation);
+        // เปลี่ยนปุ่มอัปเดตพิกัด ให้เป็นการดึงค่าสดจากเซ็นเซอร์ ESP32 แทน
+        updateGpsBtn.addEventListener('click', fetchSensorFromSupabase);
+        updateGpsBtn.innerText = "🔄 รีเฟรชเซ็นเซอร์";
     }
 
-    // ผูก Event ให้ระบบอัปเดตคำแนะนำช็อตถัดไปแบบเรียลไทม์
     ['actualYieldG', 'preInfusionSec', 'shotTimeSec', 'tasteRating'].forEach(id => {
         const el = document.getElementById(id);
         if (el) {
@@ -351,6 +344,9 @@ window.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    calculateGrind();
-    fetchWeatherByLocation();
+    // ดึงค่าเซ็นเซอร์จาก Supabase ทันทีที่โหลดหน้าเว็บ
+    fetchSensorFromSupabase();
+    
+    // ตั้งเวลาดึงข้อมูลอัตโนมัติทุกๆ 30 วินาทีเพื่อให้หน้าเว็บอัปเดตแบบ Real-time
+    setInterval(fetchSensorFromSupabase, 30000);
 });
