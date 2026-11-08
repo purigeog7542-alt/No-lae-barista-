@@ -1,78 +1,5 @@
 // ==========================================
-// 1. TIMEMORE BRICKS 01S ENGINE & DATABASE
-// ==========================================
-const BRICKS_CONFIG = {
-    name: "Timemore Bricks 01S (40mm S2C040 Conical)",
-    baseEspressoClick: 25, // ค่าเริ่มต้นมาตรฐานสำหรับเอสเพรสโซ
-    workflow: [
-        "ใช้ RDT สเปรย์พรมน้ำ 1-2 ละอองบนเมล็ดกาแฟก่อนลง Hopper",
-        "กดปุ่มเปิดเครื่องก่อนค่อยเปิดฝาเทเมล็ดกาแฟลงไป",
-        "เมื่อบดเสร็จ ให้หมุน Fines Knocker เคาะผงกาแฟค้างช็อตให้ออกหมด"
-    ]
-};
-
-// ==========================================
-// 2. SUPABASE CONFIGURATION
-// ==========================================
-const SUPABASE_URL = 'https://punvjllkjbeziycbcgxw.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB1bnZqbGxramJlaml5Y2JjZ3h3Iiwicm9sZSI6InB1bnZqbGxramJlaml5Y2JjZ3h3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQwNjIwNjcsImV4cCI6MjEwOTYzODA2N30.Sn8yDLnO2yn9kFhh9ftHsb_SfWZNr4GKLfOb56dlzn4';
-
-let supabaseClient = null;
-if (window.supabase) {
-    supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-}
-
-// ==========================================
-// 3. WEATHER & GPS (พร้อมพิกัดสำรองบ้านนอแล ไม่ให้ค้าง)
-// ==========================================
-async function fetchWeatherByLocation() {
-    const statusEl = document.getElementById('locationStatus');
-    const tempValEl = document.getElementById('tempVal');
-    const humValEl = document.getElementById('humVal');
-
-    const norLaeLat = 19.9234; 
-    const norLaeLon = 99.1512;
-
-    const fetchWeatherAPI = async (lat, lon, sourceLabel) => {
-        try {
-            const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m`);
-            const data = await res.json();
-            
-            if (data && data.current) {
-                if (tempValEl) tempValEl.innerText = `${data.current.temperature_2m} °C`;
-                if (humValEl) humValEl.innerText = `${data.current.relative_humidity_2m} %`;
-                if (statusEl) {
-                    statusEl.innerText = `✅ สำเร็จ (${sourceLabel}): ${lat.toFixed(4)}, ${lon.toFixed(4)}`;
-                }
-                // อัปเดตการคำนวณเบอร์บดใหม่ทันทีเมื่อได้อากาศสดๆ
-                calculateGrind();
-            }
-        } catch (err) {
-            console.error("Weather fetch error:", err);
-            if (statusEl) statusEl.innerText = "⚠️ โหลดสภาพอากาศสำรองสำเร็จ";
-        }
-    };
-
-    if (statusEl) statusEl.innerText = "📍 กำลังเชื่อมต่อสภาพอากาศบ้านนอแล...";
-
-    if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-            (position) => {
-                fetchWeatherAPI(position.coords.latitude, position.coords.longitude, "GPS มือถือ");
-            }, 
-            (error) => {
-                console.warn("GPS bypass:", error);
-                fetchWeatherAPI(norLaeLat, norLaeLon, "ฐานปฏิบัติการบ้านนอแล");
-            }, 
-            { timeout: 3000, enableHighAccuracy: false, maximumAge: 60000 }
-        );
-    } else {
-        fetchWeatherAPI(norLaeLat, norLaeLon, "ฐานปฏิบัติการบ้านนอแล");
-    }
-}
-
-// ==========================================
-// 4. DYNAMIC GRIND CALCULATION (เชื่อมโยง Select Range + สภาพอากาศ + วันคั่ว)
+// DYNAMIC GRIND CALCULATION (Timemore Bricks 01S - 150 Clicks Scale)
 // ==========================================
 function calculateGrind() {
     const roastProfileEl = document.getElementById('roastProfile');
@@ -88,21 +15,23 @@ function calculateGrind() {
     const currentTemp = tempValEl ? parseFloat(tempValEl.innerText) || 25 : 25;
     const currentHum = humValEl ? parseFloat(humValEl.innerText) || 60 : 60;
 
-    // 1. คำนวณค่าฐานจาก Range ที่ผู้ใช้เลือกในเมนู Pro
-    let baseClick = 20; 
-    if (selectedRange === 'Extra-fine') baseClick = 5;
-    else if (selectedRange === 'Fine') baseClick = 12;
-    else if (selectedRange === 'Medium-fine') baseClick = 20; // โซนมาตรฐาน Espresso
-    else if (selectedRange === 'Medium') baseClick = 35;
-    else if (selectedRange === 'Medium-coarse') baseClick = 60;
-    else if (selectedRange === 'Coarse') baseClick = 90;
+    // 1. กำหนดค่าฐานตามช่วง Select Range บนสเกล 150 คลิกของ Bricks 01S
+    // Espresso: 1-45 | Moka: 15-60 | Pour Over: 75-120 | French Press: 127-145
+    let baseClick = 20; // ค่าเริ่มต้นโซน Medium-fine (Espresso ทั่วไป)
+    
+    if (selectedRange === 'Extra-fine') baseClick = 5;       // โซนละเอียดพิเศษ (Turkish / Very Fine Espresso)
+    else if (selectedRange === 'Fine') baseClick = 12;      // โซน Fine สำหรับ Espresso ช็อตแน่น
+    else if (selectedRange === 'Medium-fine') baseClick = 22; // โซน Espresso มาตรฐาน (1-45 คลิก)[cite: 13, 14]
+    else if (selectedRange === 'Medium') baseClick = 38;      // โซน Moka Pot / Espresso หยาบ (15-60 คลิก)[cite: 13, 14]
+    else if (selectedRange === 'Medium-coarse') baseClick = 85; // โซน Pour Over / Drip V60 (75-120 คลิก)[cite: 13, 14]
+    else if (selectedRange === 'Coarse') baseClick = 135;     // โซน French Press (127-145 คลิก)[cite: 13, 14]
 
     let roastNote = "คั่วกลาง (Medium Roast)";
     if (roastProfile === 'light') {
-        baseClick -= 2; 
+        baseClick -= 3; // คั่วอ่อน เมล็ดแน่น บดละเอียดขึ้น
         roastNote = "คั่วอ่อน (Light Roast)";
     } else if (roastProfile === 'dark') {
-        baseClick += 3; 
+        baseClick += 4; // คั่วเข้ม บดหยาบขึ้นป้องกันขมไหม้
         roastNote = "คั่วเข้ม (Dark Roast)";
     }
 
@@ -115,18 +44,18 @@ function calculateGrind() {
         if (isNaN(ageDays) || ageDays < 0) ageDays = 7;
     }
 
-    // 3. ชดเชยตามสภาพอากาศ
+    // 3. ชดเชยตามสภาพอากาศ (อุณหภูมิและความชื้น)
     let weatherEffectNote = "";
     if (currentTemp > 28) {
-        baseClick += 0.5;
-        weatherEffectNote += "🌡️ อากาศร้อน ปรับหยาบขึ้นเล็กน้อย | ";
+        baseClick += 1;
+        weatherEffectNote += "🌡️ อากาศร้อน เมล็ดคลายตัวไว ปรับหยาบขึ้น 1 คลิก | ";
     } else if (currentTemp < 20) {
-        baseClick -= 0.5;
-        weatherEffectNote += "❄️ อากาศเย็น ปรับละเอียดขึ้นเล็กน้อย | ";
+        baseClick -= 1;
+        weatherEffectNote += "❄️ อากาศเย็น เมล็ดแน่นขึ้น ปรับละเอียดขึ้น 1 คลิก | ";
     }
 
     if (currentHum > 80) {
-        baseClick += 0.5;
+        baseClick += 1;
         weatherEffectNote += "💧 ความชื้นสูง ป้องกันก้อนแฟบจับตัว";
     }
 
@@ -135,25 +64,26 @@ function calculateGrind() {
 
     // 4. ชดเชยตามอายุเมล็ดกาแฟ (Degassing Effect)
     if (ageDays < 5) {
-        baseClick += 2;
-        alertMsg = `⚠️ เมล็ดคั่วใหม่ (${ageDays} วัน) แก๊สยังเยอะ ควรบดหยาบขึ้น`;
+        baseClick += 3; // เมล็ดใหม่แก๊สเยอะ เพิ่มคลิกให้หยาบขึ้น
+        alertMsg = `⚠️ เมล็ดคั่วใหม่ (${ageDays} วัน) แก๊สยังเยอะ ควรบดหยาบขึ้น 3 คลิก`;
     } else if (ageDays > 30) {
-        baseClick = Math.max(1, baseClick - 2);
-        alertMsg = `ℹ️ เมล็ดคั่วมาแล้ว ${ageDays} วัน เริ่มเก่า ชดเชยโดยปรับละเอียดขึ้น`;
+        baseClick = Math.max(1, baseClick - 2); // เมล็ดเก่าลดคลิกให้ละเอียดขึ้น
+        alertMsg = `ℹ️ เมล็ดคั่วมาแล้ว ${ageDays} วัน เริ่มเก่า ปรับละเอียดขึ้น 2 คลิก`;
     }
 
-    if (roastProfile === 'light') {
-        warningExtra = "คำเตือน: Bricks 01S เฟือง Conical อาจมีแรงบดไม่พอสำหรับคั่วอ่อนมากๆ ในระดับ Espresso";
+    if (roastProfile === 'light' && selectedRange.includes('fine')) {
+        warningExtra = "คำเตือน: Bricks 01S เฟือง Conical อาจมีแรงบดไม่พอสำหรับคั่วอ่อนมากๆ ในระดับ Espresso[cite: 6, 11]";
     }
 
-    let finalSettingClick = Math.max(1, Math.round(baseClick));
+    // จำกัดช่วงคลิกให้อยู่ในสเกล 1 - 145 ของเครื่อง
+    let finalSettingClick = Math.min(145, Math.max(1, Math.round(baseClick)));
 
     // แสดงผลบนหน้าเว็บ
     const grindNumEl = document.getElementById('recommendGrind');
     const adjustReasonEl = document.getElementById('adjustReason');
     const extraAlertEl = document.getElementById('extraAlert');
 
-    if (grindNumEl) grindNumEl.innerText = finalSettingClick;
+    if (grindNumEl) grindNumEl.innerText = `${finalSettingClick} คลิก`;
     if (adjustReasonEl) {
         adjustReasonEl.innerText = `ช่วง: ${selectedRange} | ${roastNote}, อายุเมล็ด ${ageDays} วัน\nอากาศ: ${currentTemp}°C / ${currentHum}%`;
     }
@@ -172,108 +102,3 @@ function calculateGrind() {
         `;
     }
 }
-
-// ==========================================
-// 5. SUPABASE LOG STORAGE (บันทึกผลการชง)
-// ==========================================
-async function saveLogToSupabase() {
-    if (!supabaseClient) {
-        alert('⚠️ ระบบ Supabase Client ยังไม่พร้อมใช้งาน');
-        return;
-    }
-
-    const logData = {
-        grinder_model: "timemore_bricks_01s",
-        bean_name: document.getElementById('beanName').value,
-        roast_profile: document.getElementById('roastProfile').value,
-        roast_date: document.getElementById('roastDate').value || null,
-        dose_g: parseFloat(document.getElementById('doseG').value) || 0,
-        target_yield_g: parseFloat(document.getElementById('targetYield').value) || 0,
-        recommended_grind: parseFloat(document.getElementById('recommendGrind').innerText) || 0,
-        actual_yield_g: parseFloat(document.getElementById('actualYieldG').value) || null,
-        pre_infusion_sec: parseFloat(document.getElementById('preInfusionSec').value) || null,
-        shot_time_sec: parseFloat(document.getElementById('shotTimeSec').value) || null,
-        taste_rating: document.getElementById('tasteRating').value || null,
-        ambient_temp: parseFloat(document.getElementById('tempVal').innerText) || null,
-        ambient_humidity: parseFloat(document.getElementById('humVal').innerText) || null,
-        created_at: new Date().toISOString()
-    };
-
-    try {
-        const { error } = await supabaseClient.from('brew_logs').insert([logData]);
-        if (error) throw error;
-        alert('✅ บันทึกผลการสกัดลงฐานข้อมูล Supabase สำเร็จ!');
-        
-        document.getElementById('actualYieldG').value = '';
-        document.getElementById('preInfusionSec').value = '';
-        document.getElementById('shotTimeSec').value = '';
-        document.getElementById('tasteRating').value = '';
-    } catch (err) {
-        console.error("Supabase insert error:", err);
-        alert('❌ บันทึกไม่สำเร็จ: ' + err.message);
-    }
-}
-
-// ==========================================
-// 6. RANGE SELECTOR MODAL CONTROLLER (วางไว้นอก DOMContentLoaded เพื่อให้ HTML เรียกได้)
-// ==========================================
-function openRangeModal() {
-    const modal = document.getElementById('rangeModal');
-    if (modal) modal.style.display = 'flex';
-}
-
-function closeRangeModal() {
-    const modal = document.getElementById('rangeModal');
-    if (modal) modal.style.display = 'none';
-}
-
-function selectRange(rangeName) {
-    const currentRangeEl = document.getElementById('currentSelectedRange');
-    if (currentRangeEl) currentRangeEl.innerText = rangeName;
-
-    // อัปเดตสถานะ Active ใน Modal
-    document.querySelectorAll('.range-option-item').forEach(item => {
-        item.classList.remove('active');
-        if (item.innerText.includes(rangeName)) {
-            item.classList.add('active');
-        }
-    });
-
-    closeRangeModal();
-    
-    // สั่งคำนวณเบอร์บดใหม่ทันทีตาม Range ที่เปลี่ยนไป
-    calculateGrind();
-}
-
-// ==========================================
-// 7. EVENT LISTENERS & INITIALIZATION
-// ==========================================
-window.addEventListener('DOMContentLoaded', () => {
-    const defaultDate = new Date();
-    defaultDate.setDate(defaultDate.getDate() - 7);
-    const roastDateEl = document.getElementById('roastDate');
-    if (roastDateEl && !roastDateEl.value) {
-        roastDateEl.value = defaultDate.toISOString().split('T')[0];
-    }
-
-    ['roastProfile', 'roastDate'].forEach(id => {
-        const el = document.getElementById(id);
-        if (el) {
-            el.addEventListener('change', calculateGrind);
-            el.addEventListener('input', calculateGrind);
-        }
-    });
-
-    const saveBtn = document.getElementById('saveLogBtn');
-    if (saveBtn) {
-        saveBtn.addEventListener('click', saveLogToSupabase);
-    }
-
-    const updateGpsBtn = document.getElementById('updateGpsBtn');
-    if (updateGpsBtn) {
-        updateGpsBtn.addEventListener('click', fetchWeatherByLocation);
-    }
-
-    calculateGrind();
-    fetchWeatherByLocation();
-});
