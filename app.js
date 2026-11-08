@@ -163,7 +163,7 @@ function calculateGrind() {
 }
 
 // ==========================================
-// 5. SUPABASE LOG STORAGE (พร้อมระบบสำรอง LocalStorage ป้องกัน Failed to fetch)
+// 5. SUPABASE LOG STORAGE (ฉบับสมบูรณ์ ป้องกัน Error)
 // ==========================================
 async function saveLogToSupabase() {
     const grindText = document.getElementById('recommendGrind').innerText;
@@ -186,7 +186,7 @@ async function saveLogToSupabase() {
     };
 
     if (!supabaseClient) {
-        saveToLocalFallback(logData);
+        alert('⚠️ ระบบ Supabase Client ยังไม่พร้อมใช้งาน');
         return;
     }
 
@@ -195,13 +195,16 @@ async function saveLogToSupabase() {
         if (error) throw error;
         
         alert('✅ บันทึกผลการสกัดลง Supabase สำเร็จ!');
-        resetLogForm();
+        
+        document.getElementById('actualYieldG').value = '';
+        document.getElementById('preInfusionSec').value = '';
+        document.getElementById('shotTimeSec').value = '';
+        document.getElementById('tasteRating').value = '';
     } catch (err) {
-        console.warn("Supabase network error, saving to local storage...", err);
-        saveToLocalFallback(logData);
+        console.error("Supabase insert error:", err);
+        alert('❌ บันทึกไม่สำเร็จ: ' + err.message);
     }
 }
-
 function saveToLocalFallback(logData) {
     let localLogs = JSON.parse(localStorage.getItem('brew_logs_offline') || '[]');
     localLogs.push(logData);
