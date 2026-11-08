@@ -15,7 +15,7 @@ const BRICKS_CONFIG = {
 // 2. SUPABASE CONFIGURATION
 // ==========================================
 const SUPABASE_URL = 'https://punvjllkjbeziycbcgxw.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB1bnZqbGxramJlaml5Y2JjZ3h3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQwNjIwNjcsImV4cCI6MjEwOTYzODA2N30.Sn8yDLnO2yn9kFhh9ftHsb_SfWZNr4GKLfOb56dlzn4';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB1bnZqbGxramJlaml5Y2JjZ3h3Iiwicm9sZSI6InB1bnZqbGxramJlaml5Y2JjZ3h3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQwNjIwNjcsImV4cCI6MjEwOTYzODA2N30.Sn8yDLnO2yn9kFhh9ftHsb_SfWZNr4GKLfOb56dlzn4';
 
 let supabaseClient = null;
 if (window.supabase) {
@@ -44,6 +44,8 @@ async function fetchWeatherByLocation() {
                 if (statusEl) {
                     statusEl.innerText = `✅ สำเร็จ (${sourceLabel}): ${lat.toFixed(4)}, ${lon.toFixed(4)}`;
                 }
+                // อัปเดตการคำนวณเบอร์บดใหม่ทันทีเมื่อได้อากาศสดๆ
+                calculateGrind();
             }
         } catch (err) {
             console.error("Weather fetch error:", err);
@@ -70,16 +72,41 @@ async function fetchWeatherByLocation() {
 }
 
 // ==========================================
-// DYNAMIC GRIND CALCULATION (Timemore Bricks 01S - ปรับสเกลใหม่ให้แม่นยำ)
+// 4. DYNAMIC GRIND CALCULATION (เชื่อมโยง Select Range + สภาพอากาศ + วันคั่ว)
 // ==========================================
 function calculateGrind() {
     const roastProfileEl = document.getElementById('roastProfile');
     const roastDateEl = document.getElementById('roastDate');
+    const tempValEl = document.getElementById('tempVal');
+    const humValEl = document.getElementById('humVal');
+    const currentRangeEl = document.getElementById('currentSelectedRange');
 
     const roastProfile = roastProfileEl ? roastProfileEl.value : 'medium';
     const roastDateVal = roastDateEl ? roastDateEl.value : '';
+    const selectedRange = currentRangeEl ? currentRangeEl.innerText : 'Medium-fine';
     
-    // 1. คำนวณอายุเมล็ดกาแฟ
+    const currentTemp = tempValEl ? parseFloat(tempValEl.innerText) || 25 : 25;
+    const currentHum = humValEl ? parseFloat(humValEl.innerText) || 60 : 60;
+
+    // 1. คำนวณค่าฐานจาก Range ที่ผู้ใช้เลือกในเมนู Pro
+    let baseClick = 20; 
+    if (selectedRange === 'Extra-fine') baseClick = 5;
+    else if (selectedRange === 'Fine') baseClick = 12;
+    else if (selectedRange === 'Medium-fine') baseClick = 20; // โซนมาตรฐาน Espresso
+    else if (selectedRange === 'Medium') baseClick = 35;
+    else if (selectedRange === 'Medium-coarse') baseClick = 60;
+    else if (selectedRange === 'Coarse') baseClick = 90;
+
+    let roastNote = "คั่วกลาง (Medium Roast)";
+    if (roastProfile === 'light') {
+        baseClick -= 2; 
+        roastNote = "คั่วอ่อน (Light Roast)";
+    } else if (roastProfile === 'dark') {
+        baseClick += 3; 
+        roastNote = "คั่วเข้ม (Dark Roast)";
+    }
+
+    // 2. คำนวณอายุเมล็ดกาแฟ
     let ageDays = 7;
     if (roastDateVal) {
         const roastDate = new Date(roastDateVal);
@@ -88,27 +115,30 @@ function calculateGrind() {
         if (isNaN(ageDays) || ageDays < 0) ageDays = 7;
     }
 
-    // 2. กำหนดเบอร์บดพื้นฐานสำหรับ Espresso ของ Timemore Bricks 01S (ช่วงที่ดีคือ 3.5 - 7.0 คลิก)
-    let baseClick = 5.0; 
-    let roastNote = "คั่วกลาง (Medium Roast)";
+    // 3. ชดเชยตามสภาพอากาศ
+    let weatherEffectNote = "";
+    if (currentTemp > 28) {
+        baseClick += 0.5;
+        weatherEffectNote += "🌡️ อากาศร้อน ปรับหยาบขึ้นเล็กน้อย | ";
+    } else if (currentTemp < 20) {
+        baseClick -= 0.5;
+        weatherEffectNote += "❄️ อากาศเย็น ปรับละเอียดขึ้นเล็กน้อย | ";
+    }
 
-    if (roastProfile === 'light') {
-        baseClick = 3.5; // คั่วอ่อน เมล็ดแน่น ต้องบดละเอียดขึ้น
-        roastNote = "คั่วอ่อน (Light Roast)";
-    } else if (roastProfile === 'dark') {
-        baseClick = 7.0; // คั่วเข้ม บดหยาบขึ้นป้องกันขมไหม้
-        roastNote = "คั่วเข้ม (Dark Roast)";
+    if (currentHum > 80) {
+        baseClick += 0.5;
+        weatherEffectNote += "💧 ความชื้นสูง ป้องกันก้อนแฟบจับตัว";
     }
 
     let alertMsg = `✨ เมล็ดอยู่ในช่วงเวลาสกัดที่เหมาะสม (${ageDays} วันหลังคั่ว)`;
     let warningExtra = "";
 
-    // 3. ปรับชดเชยตามอายุเมล็ดกาแฟ (Degassing Effect)
+    // 4. ชดเชยตามอายุเมล็ดกาแฟ (Degassing Effect)
     if (ageDays < 5) {
-        baseClick += 1.0; // เมล็ดใหม่ แก๊สเยอะ ปรับหยาบขึ้นป้องกัน Channelling
+        baseClick += 2;
         alertMsg = `⚠️ เมล็ดคั่วใหม่ (${ageDays} วัน) แก๊สยังเยอะ ควรบดหยาบขึ้น`;
     } else if (ageDays > 30) {
-        baseClick = Math.max(1.0, baseClick - 0.8); // เมล็ดเก่า ปรับละเอียดขึ้น
+        baseClick = Math.max(1, baseClick - 2);
         alertMsg = `ℹ️ เมล็ดคั่วมาแล้ว ${ageDays} วัน เริ่มเก่า ชดเชยโดยปรับละเอียดขึ้น`;
     }
 
@@ -116,8 +146,7 @@ function calculateGrind() {
         warningExtra = "คำเตือน: Bricks 01S เฟือง Conical อาจมีแรงบดไม่พอสำหรับคั่วอ่อนมากๆ ในระดับ Espresso";
     }
 
-    // ปัดเศษให้สวยงาม (เช่น 4.5 หรือ 5.0)
-    let finalSettingClick = Number(baseClick.toFixed(1));
+    let finalSettingClick = Math.max(1, Math.round(baseClick));
 
     // แสดงผลบนหน้าเว็บ
     const grindNumEl = document.getElementById('recommendGrind');
@@ -125,18 +154,16 @@ function calculateGrind() {
     const extraAlertEl = document.getElementById('extraAlert');
 
     if (grindNumEl) grindNumEl.innerText = finalSettingClick;
-    if (adjustReasonEl) adjustReasonEl.innerText = `อิงตามเครื่องบด Timemore Bricks 01S, ${roastNote} และอายุเมล็ด ${ageDays} วัน`;
+    if (adjustReasonEl) {
+        adjustReasonEl.innerText = `ช่วง: ${selectedRange} | ${roastNote}, อายุเมล็ด ${ageDays} วัน\nอากาศ: ${currentTemp}°C / ${currentHum}%`;
+    }
 
-    const workflowList = [
-        "ใช้ RDT สเปรย์พรมน้ำ 1-2 ละอองบนเมล็ดกาแฟก่อนลง Hopper",
-        "กดปุ่มเปิดเครื่องก่อนค่อยเปิดฝาเทเมล็ดกาแฟลงไป",
-        "เมื่อบดเสร็จ ให้หมุน Fines Knocker เคาะผงกาแฟค้างช็อตให้ออกหมด"
-    ];
-    let workflowHtml = workflowList.map(w => `<div>• ${w}</div>`).join('');
+    let workflowHtml = BRICKS_CONFIG.workflow.map(w => `<div>• ${w}</div>`).join('');
 
     if (extraAlertEl) {
         extraAlertEl.innerHTML = `
             <div>${alertMsg}</div>
+            ${weatherEffectNote ? `<div style="color: #38bdf8; font-size: 0.75rem; margin-top: 2px;">${weatherEffectNote}</div>` : ''}
             ${warningExtra ? `<div style="color: #ef4444; margin-top: 4px;">⚠️ ${warningExtra}</div>` : ''}
             <div style="margin-top: 8px; font-size: 0.72rem; text-align: left; background: rgba(0,0,0,0.3); padding: 8px; border-radius: 6px; border: 1px solid #333;">
                 <div style="font-weight: bold; color: var(--accent); margin-bottom: 3px;">💡 Workflow แนะนำ:</div>
@@ -145,6 +172,7 @@ function calculateGrind() {
         `;
     }
 }
+
 // ==========================================
 // 5. SUPABASE LOG STORAGE (บันทึกผลการชง)
 // ==========================================
@@ -187,7 +215,38 @@ async function saveLogToSupabase() {
 }
 
 // ==========================================
-// 6. EVENT LISTENERS & INITIALIZATION
+// 6. RANGE SELECTOR MODAL CONTROLLER (วางไว้นอก DOMContentLoaded เพื่อให้ HTML เรียกได้)
+// ==========================================
+function openRangeModal() {
+    const modal = document.getElementById('rangeModal');
+    if (modal) modal.style.display = 'flex';
+}
+
+function closeRangeModal() {
+    const modal = document.getElementById('rangeModal');
+    if (modal) modal.style.display = 'none';
+}
+
+function selectRange(rangeName) {
+    const currentRangeEl = document.getElementById('currentSelectedRange');
+    if (currentRangeEl) currentRangeEl.innerText = rangeName;
+
+    // อัปเดตสถานะ Active ใน Modal
+    document.querySelectorAll('.range-option-item').forEach(item => {
+        item.classList.remove('active');
+        if (item.innerText.includes(rangeName)) {
+            item.classList.add('active');
+        }
+    });
+
+    closeRangeModal();
+    
+    // สั่งคำนวณเบอร์บดใหม่ทันทีตาม Range ที่เปลี่ยนไป
+    calculateGrind();
+}
+
+// ==========================================
+// 7. EVENT LISTENERS & INITIALIZATION
 // ==========================================
 window.addEventListener('DOMContentLoaded', () => {
     const defaultDate = new Date();
@@ -217,34 +276,4 @@ window.addEventListener('DOMContentLoaded', () => {
 
     calculateGrind();
     fetchWeatherByLocation();
-    // ==========================================
-// 7. RANGE SELECTOR MODAL CONTROLLER
-// ==========================================
-function openRangeModal() {
-    const modal = document.getElementById('rangeModal');
-    if (modal) modal.style.display = 'flex';
-}
-
-function closeRangeModal() {
-    const modal = document.getElementById('rangeModal');
-    if (modal) modal.style.display = 'none';
-}
-
-function selectRange(rangeName) {
-    const currentRangeEl = document.getElementById('currentSelectedRange');
-    if (currentRangeEl) currentRangeEl.innerText = rangeName;
-    
-    // จำลองการเปลี่ยนช่วงตัวเลขตามระดับที่เลือกสำหรับ Timemore Bricks 01S
-    const rangeValEl = document.getElementById('recommendGrind'); // ใช้ช่องแสดงผลหลักหรือสร้าง element รองรับ
-    if (rangeValEl) {
-        if (rangeName === 'Extra-fine') rangeValEl.innerText = '1.0 - 2.0';
-        else if (rangeName === 'Fine') rangeValEl.innerText = '2.1 - 3.5';
-        else if (rangeName === 'Medium-fine') rangeValEl.innerText = '3.6 - 5.0';
-        else if (rangeName === 'Medium') rangeValEl.innerText = '5.1 - 6.5';
-        else if (rangeName === 'Medium-coarse') rangeValEl.innerText = '6.6 - 8.0';
-        else if (rangeName === 'Coarse') rangeValEl.innerText = '8.1 - 10.0';
-    }
-
-    closeRangeModal();
-}
 });
