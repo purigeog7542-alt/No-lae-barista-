@@ -14,7 +14,7 @@ const BRICKS_CONFIG = {
 // 2. SUPABASE CONFIGURATION
 // ==========================================
 const SUPABASE_URL = 'https://punvjllkjbeziycbcgxw.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB1bnZqbGxramJlaml5Y2JjZ3h3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQwNjIwNjcsImV4cCI6MjEwOTYzODA2N30.Sn8yDLnO2yn9kFhh9ftHsb_SfWZNr4GKLfOb56dlzn4';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB1bnZqbGxramJlaml5Y2JjZ3h3Iiwicm9sZSI6InB1bnZhbjEiLCJpYXQiOjE3OTQwNjIwNjcsImV4cCI6MjEwOTYzODA2N30.Sn8yDLnO2yn9kFhh9ftHsb_SfWZNr4GKLfOb56dlzn4';
 
 let supabaseClient = null;
 if (window.supabase) {
@@ -163,7 +163,7 @@ function calculateGrind() {
 }
 
 // ==========================================
-// 5. SUPABASE LOG STORAGE (พร้อมระบบสำรอง LocalStorage อัตโนมัติ)
+// 5. SUPABASE LOG STORAGE (พร้อมระบบสำรอง LocalStorage)
 // ==========================================
 async function saveLogToSupabase() {
     const grindText = document.getElementById('recommendGrind').innerText;
@@ -246,7 +246,71 @@ function selectRange(rangeName) {
 }
 
 // ==========================================
-// 7. EVENT LISTENERS & INITIALIZATION
+// 7. NEXT-SHOT EXTRACTION & PRE-INFUSION PREDICTOR
+// ==========================================
+function analyzeNextShotPrediction() {
+    const shotTimeSec = parseFloat(document.getElementById('shotTimeSec').value);
+    const preInfusionSec = parseFloat(document.getElementById('preInfusionSec').value) || 5.0;
+    const tasteRating = document.getElementById('tasteRating').value;
+    const currentRecGrindText = document.getElementById('recommendGrind').innerText;
+    let currentClicks = parseFloat(currentRecGrindText) || 22;
+
+    if (!shotTimeSec || !tasteRating) {
+        return {
+            nextGrindClicks: currentClicks,
+            nextPreInfusion: preInfusionSec,
+            advice: "💡 กรุณากรอกผลการสกัดจริง (เวลาและรสชาติ) เพื่อให้ระบบวิเคราะห์ช็อตถัดไป"
+        };
+    }
+
+    let deltaClicks = 0;
+    let deltaPreInfusion = 0;
+    let diagnosticAdvice = "";
+
+    // เปรี้ยวโดด หรือ ไหลเร็วเกินไป (Under-extracted)
+    if (tasteRating === 'Sour' || shotTimeSec < 25) {
+        deltaClicks = -2; // บดละเอียดขึ้น
+        deltaPreInfusion = +2; // เพิ่มเวลาพรีอินฟิวชัน
+        diagnosticAdvice = "🍋 ช็อตที่แล้วไหลเร็ว/เปรี้ยวเกินไป: แนะนำให้บดละเอียดขึ้น 2 คลิก และเพิ่มเวลาพรีอินฟิวชันอีก 2 วินาที";
+    } 
+    // ขมไหม้, ฝาด หรือ ไหลช้าเกินไป (Over-extracted / Channeling)
+    else if (tasteRating === 'Bitter' || tasteRating === 'Astringent' || shotTimeSec > 35) {
+        deltaClicks = +2; // บดหยาบขึ้น
+        deltaPreInfusion = -1; // ลดเวลาพรีอินฟิวชัน
+        diagnosticAdvice = "☕ ช็อตที่แล้วไหลช้า/ขมฝาด: แนะนำให้บดหยาบขึ้น 2 คลิก และลดเวลาพรีอินฟิวชันลง 1 วินาที";
+    } 
+    // สมบูรณ์แบบ
+    else if (tasteRating === 'Optimal') {
+        deltaClicks = 0;
+        deltaPreInfusion = 0;
+        diagnosticAdvice = "✨ ช็อตที่แล้วสมบูรณ์แบบ (Optimal Balance): ใช้ค่าพารามิเตอร์นี้ต่อได้เลย";
+    }
+
+    let nextGrindClicks = Math.min(145, Math.max(1, currentClicks + deltaClicks));
+    let nextPreInfusion = Math.max(2, preInfusionSec + deltaPreInfusion);
+
+    return {
+        nextGrindClicks: nextGrindClicks,
+        nextPreInfusion: nextPreInfusion,
+        advice: diagnosticAdvice
+    };
+}
+
+function updateNextShotUI() {
+    const prediction = analyzeNextShotPrediction();
+    const nextShotEl = document.getElementById('nextShotRecommendation');
+    if (nextShotEl) {
+        nextShotEl.innerHTML = `
+            <div style="font-weight: bold; color: var(--accent); margin-bottom: 4px;">🔮 ทำนายแนวทางช็อตถัดไป:</div>
+            <div>• เบอร์บดแนะนำ: <b>${prediction.nextGrindClicks} คลิก</b></div>
+            <div>• เวลา Pre-infusion แนะนำ: <b>${prediction.nextPreInfusion} วินาที</b></div>
+            <div style="font-size: 0.75rem; color: var(--text-sub); margin-top: 4px;">${prediction.advice}</div>
+        `;
+    }
+}
+
+// ==========================================
+// 8. EVENT LISTENERS & INITIALIZATION
 // ==========================================
 window.addEventListener('DOMContentLoaded', () => {
     const defaultDate = new Date();
@@ -259,7 +323,7 @@ window.addEventListener('DOMContentLoaded', () => {
     const profileEl = document.getElementById('roastProfile');
     const dateEl = document.getElementById('roastDate');
 
-    | if (profileEl) {
+    if (profileEl) {
         profileEl.addEventListener('change', calculateGrind);
         profileEl.addEventListener('input', calculateGrind);
     }
@@ -277,6 +341,15 @@ window.addEventListener('DOMContentLoaded', () => {
     if (updateGpsBtn) {
         updateGpsBtn.addEventListener('click', fetchWeatherByLocation);
     }
+
+    // ผูก Event ให้ระบบอัปเดตคำแนะนำช็อตถัดไปแบบเรียลไทม์
+    ['actualYieldG', 'preInfusionSec', 'shotTimeSec', 'tasteRating'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.addEventListener('change', updateNextShotUI);
+            el.addEventListener('input', updateNextShotUI);
+        }
+    });
 
     calculateGrind();
     fetchWeatherByLocation();
