@@ -15,7 +15,7 @@ const BRICKS_CONFIG = {
 // ==========================================
 // ใช้ URL แบบไม่มี /rest/v1/ ต่อท้าย ปล่อยให้ Supabase Client จัดการเส้นทางเอง
 const SUPABASE_URL = 'https://punvjllkjbejiycbcgxw.supabase.co'; 
-const SUPABASE_ANON_KEY = ''eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB1bnZqbGxramJlaml5Y2JjZ3h3Iiwicm9sZSI6InB1bnZhbjEiLCJpYXQiOjE3OTQwNjIwNjcsImV4cCI6MjEwOTYzODA2N30.Sn8yDLnO2yn9kFhh9ftHsb_SfWZNr4GKLfOb56dlzn4';';
+const SUPABASE_ANON_KEY = 'sb_publishable_yTVL3m4ioYQZ6i46XxIRHw_l0Z4iJ7Y';
 
 let supabaseClient = null;
 if (window.supabase) {
