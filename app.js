@@ -70,7 +70,7 @@ async function fetchWeatherByLocation() {
 }
 
 // ==========================================
-// 4. DYNAMIC GRIND CALCULATION (Timemore Bricks 01S)
+// DYNAMIC GRIND CALCULATION (Timemore Bricks 01S - ปรับสเกลใหม่ให้แม่นยำ)
 // ==========================================
 function calculateGrind() {
     const roastProfileEl = document.getElementById('roastProfile');
@@ -79,41 +79,45 @@ function calculateGrind() {
     const roastProfile = roastProfileEl ? roastProfileEl.value : 'medium';
     const roastDateVal = roastDateEl ? roastDateEl.value : '';
     
-    // คำนวณอายุเมล็ดกาแฟ
+    // 1. คำนวณอายุเมล็ดกาแฟ
     let ageDays = 7;
     if (roastDateVal) {
         const roastDate = new Date(roastDateVal);
         const today = new Date();
         ageDays = Math.floor((today - roastDate) / (1000 * 60 * 60 * 24));
+        if (isNaN(ageDays) || ageDays < 0) ageDays = 7;
     }
 
-    // คำนวณเบอร์บดตามระดับการคั่วสำหรับ Timemore Bricks 01S
-    let finalSettingClick = BRICKS_CONFIG.baseEspressoClick;
+    // 2. กำหนดเบอร์บดพื้นฐานสำหรับ Espresso ของ Timemore Bricks 01S (ช่วงที่ดีคือ 3.5 - 7.0 คลิก)
+    let baseClick = 5.0; 
     let roastNote = "คั่วกลาง (Medium Roast)";
 
     if (roastProfile === 'light') {
-        finalSettingClick -= 4; // คั่วอ่อน บดละเอียดขึ้น
+        baseClick = 3.5; // คั่วอ่อน เมล็ดแน่น ต้องบดละเอียดขึ้น
         roastNote = "คั่วอ่อน (Light Roast)";
     } else if (roastProfile === 'dark') {
-        finalSettingClick += 5; // คั่วเข้ม บดหยาบขึ้น
+        baseClick = 7.0; // คั่วเข้ม บดหยาบขึ้นป้องกันขมไหม้
         roastNote = "คั่วเข้ม (Dark Roast)";
     }
 
     let alertMsg = `✨ เมล็ดอยู่ในช่วงเวลาสกัดที่เหมาะสม (${ageDays} วันหลังคั่ว)`;
     let warningExtra = "";
 
-    // ปรับชดเชยตามอายุเมล็ดกาแฟ (Degassing Effect)
+    // 3. ปรับชดเชยตามอายุเมล็ดกาแฟ (Degassing Effect)
     if (ageDays < 5) {
-        finalSettingClick += 3;
-        alertMsg = `⚠️ เมล็ดคั่วใหม่ (${ageDays} วัน) แก๊สยังเยอะ ควรบดหยาบขึ้นป้องกัน Channelling`;
+        baseClick += 1.0; // เมล็ดใหม่ แก๊สเยอะ ปรับหยาบขึ้นป้องกัน Channelling
+        alertMsg = `⚠️ เมล็ดคั่วใหม่ (${ageDays} วัน) แก๊สยังเยอะ ควรบดหยาบขึ้น`;
     } else if (ageDays > 30) {
-        finalSettingClick = Math.max(1, finalSettingClick - 2);
-        alertMsg = `ℹ️ เมล็ดคั่วมาแล้ว ${ageDays} วัน เริ่มเก่า ชดเชยโดยการปรับเบอร์บดละเอียดขึ้น`;
+        baseClick = Math.max(1.0, baseClick - 0.8); // เมล็ดเก่า ปรับละเอียดขึ้น
+        alertMsg = `ℹ️ เมล็ดคั่วมาแล้ว ${ageDays} วัน เริ่มเก่า ชดเชยโดยปรับละเอียดขึ้น`;
     }
 
     if (roastProfile === 'light') {
         warningExtra = "คำเตือน: Bricks 01S เฟือง Conical อาจมีแรงบดไม่พอสำหรับคั่วอ่อนมากๆ ในระดับ Espresso";
     }
+
+    // ปัดเศษให้สวยงาม (เช่น 4.5 หรือ 5.0)
+    let finalSettingClick = Number(baseClick.toFixed(1));
 
     // แสดงผลบนหน้าเว็บ
     const grindNumEl = document.getElementById('recommendGrind');
@@ -121,9 +125,14 @@ function calculateGrind() {
     const extraAlertEl = document.getElementById('extraAlert');
 
     if (grindNumEl) grindNumEl.innerText = finalSettingClick;
-    if (adjustReasonEl) adjustReasonEl.innerText = `อิงตามเครื่องบด ${BRICKS_CONFIG.name}, ${roastNote} และอายุเมล็ด ${ageDays} วัน`;
+    if (adjustReasonEl) adjustReasonEl.innerText = `อิงตามเครื่องบด Timemore Bricks 01S, ${roastNote} และอายุเมล็ด ${ageDays} วัน`;
 
-    let workflowHtml = BRICKS_CONFIG.workflow.map(w => `<div>• ${w}</div>`).join('');
+    const workflowList = [
+        "ใช้ RDT สเปรย์พรมน้ำ 1-2 ละอองบนเมล็ดกาแฟก่อนลง Hopper",
+        "กดปุ่มเปิดเครื่องก่อนค่อยเปิดฝาเทเมล็ดกาแฟลงไป",
+        "เมื่อบดเสร็จ ให้หมุน Fines Knocker เคาะผงกาแฟค้างช็อตให้ออกหมด"
+    ];
+    let workflowHtml = workflowList.map(w => `<div>• ${w}</div>`).join('');
 
     if (extraAlertEl) {
         extraAlertEl.innerHTML = `
@@ -136,7 +145,6 @@ function calculateGrind() {
         `;
     }
 }
-
 // ==========================================
 // 5. SUPABASE LOG STORAGE (บันทึกผลการชง)
 // ==========================================
