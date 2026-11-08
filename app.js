@@ -217,4 +217,34 @@ window.addEventListener('DOMContentLoaded', () => {
 
     calculateGrind();
     fetchWeatherByLocation();
+    // ==========================================
+// 7. RANGE SELECTOR MODAL CONTROLLER
+// ==========================================
+function openRangeModal() {
+    const modal = document.getElementById('rangeModal');
+    if (modal) modal.style.display = 'flex';
+}
+
+function closeRangeModal() {
+    const modal = document.getElementById('rangeModal');
+    if (modal) modal.style.display = 'none';
+}
+
+function selectRange(rangeName) {
+    const currentRangeEl = document.getElementById('currentSelectedRange');
+    if (currentRangeEl) currentRangeEl.innerText = rangeName;
+    
+    // จำลองการเปลี่ยนช่วงตัวเลขตามระดับที่เลือกสำหรับ Timemore Bricks 01S
+    const rangeValEl = document.getElementById('recommendGrind'); // ใช้ช่องแสดงผลหลักหรือสร้าง element รองรับ
+    if (rangeValEl) {
+        if (rangeName === 'Extra-fine') rangeValEl.innerText = '1.0 - 2.0';
+        else if (rangeName === 'Fine') rangeValEl.innerText = '2.1 - 3.5';
+        else if (rangeName === 'Medium-fine') rangeValEl.innerText = '3.6 - 5.0';
+        else if (rangeName === 'Medium') rangeValEl.innerText = '5.1 - 6.5';
+        else if (rangeName === 'Medium-coarse') rangeValEl.innerText = '6.6 - 8.0';
+        else if (rangeName === 'Coarse') rangeValEl.innerText = '8.1 - 10.0';
+    }
+
+    closeRangeModal();
+}
 });
