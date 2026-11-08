@@ -1,4 +1,4 @@
-const CACHE_NAME = 'barista-os-v20'; // เปลี่ยนเลขเวอร์ชันตรงนี้เพื่อบังคับอัปเดตแคชใหม่
+const CACHE_NAME = 'barista-os-v21'; // เปลี่ยนเลขเวอร์ชันตรงนี้เพื่อบังคับอัปเดตแคชใหม่
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
