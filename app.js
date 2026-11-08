@@ -22,7 +22,7 @@ if (window.supabase) {
 }
 
 // ==========================================
-// 3. WEATHER & GPS (แก้ไขไม่ให้ค้าง ใช้พิกัดบ้านนอแลสำรองอัตโนมัติ)
+// 3. WEATHER & GPS (ดึงสภาพอากาศจริงอัตโนมัติ)
 // ==========================================
 async function fetchWeatherByLocation() {
     const statusEl = document.getElementById('locationStatus');
@@ -63,7 +63,7 @@ async function fetchWeatherByLocation() {
                 console.warn("GPS bypass:", error);
                 fetchWeatherAPI(norLaeLat, norLaeLon, "ฐานปฏิบัติการบ้านนอแล");
             }, 
-            { timeout: 1500, enableHighAccuracy: false, maximumAge: 60000 } // ลดเวลา timeout เหลือ 1.5 วิ ไม่ให้หน้าจოკ้าง
+            { timeout: 1500, enableHighAccuracy: false, maximumAge: 60000 }
         );
     } else {
         fetchWeatherAPI(norLaeLat, norLaeLon, "ฐานปฏิบัติการบ้านนอแล");
@@ -71,7 +71,7 @@ async function fetchWeatherByLocation() {
 }
 
 // ==========================================
-// 4. DYNAMIC GRIND CALCULATION (ประมวลผลคั่ว อากาศ และ Range)
+// 4. DYNAMIC GRIND CALCULATION (วิเคราะห์ค่าจริงอัตโนมัติ)
 // ==========================================
 function calculateGrind() {
     const roastProfileEl = document.getElementById('roastProfile');
@@ -115,7 +115,7 @@ function calculateGrind() {
         if (isNaN(ageDays) || ageDays < 0) ageDays = 7;
     }
 
-    // ชดเชยสภาพอากาศ
+    // วิเคราะห์ชดเชยด้วย "สภาพอากาศจริง" (Temperature & Humidity Analysis)
     let weatherEffectNote = "";
     if (currentTemp > 28) {
         baseClicks += 1;
@@ -127,7 +127,7 @@ function calculateGrind() {
 
     if (currentHum > 80) {
         baseClicks += 1;
-        weatherEffectNote += `💧 ความชื้นสูง (${currentHum}%)`;
+        weatherEffectNote += `💧 ความชื้นสูง (${currentHum}%) ป้องกันผงกาแฟเกาะตัว`;
     }
 
     let alertMsg = `✨ เมล็ดอยู่ในช่วงเวลาสกัดที่เหมาะสม (${ageDays} วันหลังคั่ว)`;
@@ -167,35 +167,37 @@ function calculateGrind() {
 }
 
 // ==========================================
-// 5. SUPABASE LOG STORAGE
+// 5. SUPABASE LOG STORAGE (เชื่อมโยงคอลัมน์ grind_size)
 // ==========================================
 async function saveLogToSupabase() {
+    const grindText = document.getElementById('recommendGrind').innerText;
+    const grindNumber = parseFloat(grindText.replace(/[^\d.]/g, '')) || 0;
+
+    const logData = {
+        bean_name: document.getElementById('beanName').value || "Nor Lae House Blend",
+        roast_profile: document.getElementById('roastProfile').value,
+        roast_date: document.getElementById('roastDate').value || null,
+        grind_size: grindNumber, // แม็ปตรงกับคอลัมน์ grind_size ใน Supabase
+        dose_g: parseFloat(document.getElementById('doseG').value) || 0,
+        target_yield_g: parseFloat(document.getElementById('targetYield').value) || 0,
+        actual_yield_g: parseFloat(document.getElementById('actualYieldG').value) || null,
+        pre_infusion_sec: parseFloat(document.getElementById('preInfusionSec').value) || null,
+        shot_time_sec: parseFloat(document.getElementById('shotTimeSec').value) || null,
+        ambient_temp: parseFloat(document.getElementById('tempVal').innerText) || null,
+        ambient_humidity: parseFloat(document.getElementById('humVal').innerText) || null,
+        taste_rating: document.getElementById('tasteRating').value || null,
+        created_at: new Date().toISOString()
+    };
+
     if (!supabaseClient) {
         alert('⚠️ ระบบ Supabase Client ยังไม่พร้อมใช้งาน');
         return;
     }
 
-    const logData = {
-        grinder_model: "timemore_bricks_01s",
-        bean_name: document.getElementById('beanName').value,
-        roast_profile: document.getElementById('roastProfile').value,
-        roast_date: document.getElementById('roastDate').value || null,
-        dose_g: parseFloat(document.getElementById('doseG').value) || 0,
-        target_yield_g: parseFloat(document.getElementById('targetYield').value) || 0,
-        recommended_grind: parseFloat(document.getElementById('recommendGrind').innerText) || 0,
-        actual_yield_g: parseFloat(document.getElementById('actualYieldG').value) || null,
-        pre_infusion_sec: parseFloat(document.getElementById('preInfusionSec').value) || null,
-        shot_time_sec: parseFloat(document.getElementById('shotTimeSec').value) || null,
-        taste_rating: document.getElementById('tasteRating').value || null,
-        ambient_temp: parseFloat(document.getElementById('tempVal').innerText) || null,
-        ambient_humidity: parseFloat(document.getElementById('humVal').innerText) || null,
-        created_at: new Date().toISOString()
-    };
-
     try {
         const { error } = await supabaseClient.from('brew_logs').insert([logData]);
         if (error) throw error;
-        alert('✅ บันทึกผลการสกัดลงฐานข้อมูล Supabase สำเร็จ!');
+        alert('✅ บันทึกผลการสกัดลง Supabase สำเร็จ!');
         
         document.getElementById('actualYieldG').value = '';
         document.getElementById('preInfusionSec').value = '';
@@ -246,7 +248,6 @@ window.addEventListener('DOMContentLoaded', () => {
         roastDateEl.value = defaultDate.toISOString().split('T')[0];
     }
 
-    // ผูก Event ให้ครบถ้วนทั้ง change และ input รองรับการเปลี่ยนระดับการคั่วและวันคั่ว
     const profileEl = document.getElementById('roastProfile');
     const dateEl = document.getElementById('roastDate');
 
