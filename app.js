@@ -14,7 +14,7 @@ const BRICKS_CONFIG = {
 // 2. SUPABASE CONFIGURATION
 // ==========================================
 const SUPABASE_URL = 'https://punvjllkjbeziycbcgxw.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB1bnZqbGxramJlaml5Y2JjZ3h3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQwNjIwNjcsImV4cCI6MjEwOTYzODA2N30.Sn8yDLnO2yn9kFhh9ftHsb_SfWZNr4GKLfOb56dlzn4';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB1bnZqbGxramJlaml5Y2JjZ3h3Iiwicm9sZSI6InB1bnZqbGxramJlaml5Y2JjZ3h3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQwNjIwNjcsImV4cCI6MjEwOTYzODA2N30.Sn8yDLnO2yn9kFhh9ftHsb_SfWZNr4GKLfOb56dlzn4';
 
 let supabaseClient = null;
 if (window.supabase) {
@@ -87,7 +87,6 @@ function calculateGrind() {
     const currentTemp = tempValEl ? parseFloat(tempValEl.innerText) || 25 : 25;
     const currentHum = humValEl ? parseFloat(humValEl.innerText) || 60 : 60;
 
-    // กำหนดค่าฐานคลิกตาม Select Range (สเกล 150 คลิก)
     let baseClicks = 22; 
     
     if (selectedRange === 'Extra-fine') baseClicks = 5;
@@ -106,7 +105,6 @@ function calculateGrind() {
         roastNote = "คั่วเข้ม (Dark Roast)";
     }
 
-    // คำนวณอายุเมล็ดกาแฟ
     let ageDays = 7;
     if (roastDateVal) {
         const roastDate = new Date(roastDateVal);
@@ -115,7 +113,6 @@ function calculateGrind() {
         if (isNaN(ageDays) || ageDays < 0) ageDays = 7;
     }
 
-    // วิเคราะห์ชดเชยด้วย "สภาพอากาศจริง" (Temperature & Humidity Analysis)
     let weatherEffectNote = "";
     if (currentTemp > 28) {
         baseClicks += 1;
@@ -142,7 +139,6 @@ function calculateGrind() {
 
     let finalClicks = Math.min(145, Math.max(1, Math.round(baseClicks)));
 
-    // แสดงผล
     const grindNumEl = document.getElementById('recommendGrind');
     const adjustReasonEl = document.getElementById('adjustReason');
     const extraAlertEl = document.getElementById('extraAlert');
@@ -167,7 +163,7 @@ function calculateGrind() {
 }
 
 // ==========================================
-// 5. SUPABASE LOG STORAGE (เชื่อมโยงคอลัมน์ grind_size)
+// 5. SUPABASE LOG STORAGE (พร้อมระบบสำรอง LocalStorage ป้องกัน Failed to fetch)
 // ==========================================
 async function saveLogToSupabase() {
     const grindText = document.getElementById('recommendGrind').innerText;
@@ -177,7 +173,7 @@ async function saveLogToSupabase() {
         bean_name: document.getElementById('beanName').value || "Nor Lae House Blend",
         roast_profile: document.getElementById('roastProfile').value,
         roast_date: document.getElementById('roastDate').value || null,
-        grind_size: grindNumber, // แม็ปตรงกับคอลัมน์ grind_size ใน Supabase
+        grind_size: grindNumber,
         dose_g: parseFloat(document.getElementById('doseG').value) || 0,
         target_yield_g: parseFloat(document.getElementById('targetYield').value) || 0,
         actual_yield_g: parseFloat(document.getElementById('actualYieldG').value) || null,
@@ -190,23 +186,35 @@ async function saveLogToSupabase() {
     };
 
     if (!supabaseClient) {
-        alert('⚠️ ระบบ Supabase Client ยังไม่พร้อมใช้งาน');
+        saveToLocalFallback(logData);
         return;
     }
 
     try {
         const { error } = await supabaseClient.from('brew_logs').insert([logData]);
         if (error) throw error;
-        alert('✅ บันทึกผลการสกัดลง Supabase สำเร็จ!');
         
-        document.getElementById('actualYieldG').value = '';
-        document.getElementById('preInfusionSec').value = '';
-        document.getElementById('shotTimeSec').value = '';
-        document.getElementById('tasteRating').value = '';
+        alert('✅ บันทึกผลการสกัดลง Supabase สำเร็จ!');
+        resetLogForm();
     } catch (err) {
-        console.error("Supabase insert error:", err);
-        alert('❌ บันทึกไม่สำเร็จ: ' + err.message);
+        console.warn("Supabase network error, saving to local storage...", err);
+        saveToLocalFallback(logData);
     }
+}
+
+function saveToLocalFallback(logData) {
+    let localLogs = JSON.parse(localStorage.getItem('brew_logs_offline') || '[]');
+    localLogs.push(logData);
+    localStorage.setItem('brew_logs_offline', JSON.stringify(localLogs));
+    alert('⚠️ ไม่สามารถเชื่อมต่อ Supabase ได้ ระบบบันทึกข้อมูลเก็บไว้ในเครื่อง (LocalStorage) เรียบร้อยแล้ว');
+    resetLogForm();
+}
+
+function resetLogForm() {
+    document.getElementById('actualYieldG').value = '';
+    document.getElementById('preInfusionSec').value = '';
+    document.getElementById('shotTimeSec').value = '';
+    document.getElementById('tasteRating').value = '';
 }
 
 // ==========================================
