@@ -22,7 +22,7 @@ if (window.supabase) {
 }
 
 // ==========================================
-// 3. WEATHER & GPS 
+// 3. WEATHER & GPS (แก้ไขไม่ให้ค้าง ใช้พิกัดบ้านนอแลสำรองอัตโนมัติ)
 // ==========================================
 async function fetchWeatherByLocation() {
     const statusEl = document.getElementById('locationStatus');
@@ -48,10 +48,11 @@ async function fetchWeatherByLocation() {
         } catch (err) {
             console.error("Weather fetch error:", err);
             if (statusEl) statusEl.innerText = "⚠️ โหลดสภาพอากาศสำรองสำเร็จ";
+            fetchWeatherAPI(norLaeLat, norLaeLon, "ฐานปฏิบัติการบ้านนอแล (Fallback)");
         }
     };
 
-    if (statusEl) statusEl.innerText = "📍 กำลังเชื่อมต่อสภาพอากาศบ้านนอแล...";
+    if (statusEl) statusEl.innerText = "📍 กำลังเชื่อมต่อสภาพอากาศ...";
 
     if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
@@ -62,7 +63,7 @@ async function fetchWeatherByLocation() {
                 console.warn("GPS bypass:", error);
                 fetchWeatherAPI(norLaeLat, norLaeLon, "ฐานปฏิบัติการบ้านนอแล");
             }, 
-            { timeout: 3000, enableHighAccuracy: false, maximumAge: 60000 }
+            { timeout: 1500, enableHighAccuracy: false, maximumAge: 60000 } // ลดเวลา timeout เหลือ 1.5 วิ ไม่ให้หน้าจოკ้าง
         );
     } else {
         fetchWeatherAPI(norLaeLat, norLaeLon, "ฐานปฏิบัติการบ้านนอแล");
@@ -70,7 +71,7 @@ async function fetchWeatherByLocation() {
 }
 
 // ==========================================
-// 4. DYNAMIC GRIND CALCULATION (เชื่อมโยง Select Range เต็มรูปแบบ)
+// 4. DYNAMIC GRIND CALCULATION (ประมวลผลคั่ว อากาศ และ Range)
 // ==========================================
 function calculateGrind() {
     const roastProfileEl = document.getElementById('roastProfile');
@@ -207,7 +208,7 @@ async function saveLogToSupabase() {
 }
 
 // ==========================================
-// 6. RANGE SELECTOR MODAL CONTROLLER (วางนอกเพื่อรับ Event จาก HTML)
+// 6. RANGE SELECTOR MODAL CONTROLLER
 // ==========================================
 function openRangeModal() {
     const modal = document.getElementById('rangeModal');
@@ -223,7 +224,6 @@ function selectRange(rangeName) {
     const currentRangeEl = document.getElementById('currentSelectedRange');
     if (currentRangeEl) currentRangeEl.innerText = rangeName;
 
-    // อัปเดตคลาส Active ใน Modal
     document.querySelectorAll('.range-option-item').forEach(item => {
         item.classList.remove('active');
         if (item.innerText.includes(rangeName)) {
@@ -232,8 +232,6 @@ function selectRange(rangeName) {
     });
 
     closeRangeModal();
-    
-    // คำนวณเบอร์บดใหม่ทันทีตาม Range ที่เลือก
     calculateGrind();
 }
 
@@ -248,13 +246,18 @@ window.addEventListener('DOMContentLoaded', () => {
         roastDateEl.value = defaultDate.toISOString().split('T')[0];
     }
 
-    ['roastProfile', 'roastDate'].forEach(id => {
-        const el = document.getElementById(id);
-        if (el) {
-            el.addEventListener('change', calculateGrind);
-            el.addEventListener('input', calculateGrind);
-        }
-    });
+    // ผูก Event ให้ครบถ้วนทั้ง change และ input รองรับการเปลี่ยนระดับการคั่วและวันคั่ว
+    const profileEl = document.getElementById('roastProfile');
+    const dateEl = document.getElementById('roastDate');
+
+    if (profileEl) {
+        profileEl.addEventListener('change', calculateGrind);
+        profileEl.addEventListener('input', calculateGrind);
+    }
+    if (dateEl) {
+        dateEl.addEventListener('change', calculateGrind);
+        dateEl.addEventListener('input', calculateGrind);
+    }
 
     const saveBtn = document.getElementById('saveLogBtn');
     if (saveBtn) {
