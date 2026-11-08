@@ -1,11 +1,18 @@
 // ==========================================
-// IMPORT MODULES & DATABASES
+// 1. TIMEMORE BRICKS 01S ENGINE & DATABASE
 // ==========================================
-import { GRINDERS_DATABASE } from './grindersDatabase.js';
-import { calculateGrindSetting } from './baristaLogicEngine.js';
+const BRICKS_CONFIG = {
+    name: "Timemore Bricks 01S (40mm S2C040 Conical)",
+    baseEspressoClick: 25, // ค่าเริ่มต้นมาตรฐานสำหรับเอสเพรสโซ
+    workflow: [
+        "ใช้ RDT สเปรย์พรมน้ำ 1-2 ละอองบนเมล็ดกาแฟก่อนลง Hopper",
+        "กดปุ่มเปิดเครื่องก่อนค่อยเปิดฝาเทเมล็ดกาแฟลงไป",
+        "เมื่อบดเสร็จ ให้หมุน Fines Knocker เคาะผงกาแฟค้างช็อตให้ออกหมด"
+    ]
+};
 
 // ==========================================
-// SUPABASE CONFIGURATION
+// 2. SUPABASE CONFIGURATION
 // ==========================================
 const SUPABASE_URL = 'https://punvjllkjbeziycbcgxw.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB1bnZqbGxramJlaml5Y2JjZ3h3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQwNjIwNjcsImV4cCI6MjEwOTYzODA2N30.Sn8yDLnO2yn9kFhh9ftHsb_SfWZNr4GKLfOb56dlzn4';
@@ -16,14 +23,13 @@ if (window.supabase) {
 }
 
 // ==========================================
-// 1. WEATHER & GPS AUTO-FETCH (พร้อมพิกัดสำรองฐานปฏิบัติการบ้านนอแล)
+// 3. WEATHER & GPS (พร้อมพิกัดสำรองบ้านนอแล ไม่ให้ค้าง)
 // ==========================================
 async function fetchWeatherByLocation() {
     const statusEl = document.getElementById('locationStatus');
     const tempValEl = document.getElementById('tempVal');
     const humValEl = document.getElementById('humVal');
 
-    // พิกัดหลักฐานปฏิบัติการบ้านนอแล อ.ฝาง จ.เชียงใหม่
     const norLaeLat = 19.9234; 
     const norLaeLon = 99.1512;
 
@@ -41,20 +47,19 @@ async function fetchWeatherByLocation() {
             }
         } catch (err) {
             console.error("Weather fetch error:", err);
-            if (statusEl) statusEl.innerText = "⚠️ ไม่สามารถโหลดสภาพอากาศได้";
+            if (statusEl) statusEl.innerText = "⚠️ โหลดสภาพอากาศสำรองสำเร็จ";
         }
     };
 
-    if (statusEl) statusEl.innerText = "📍 กำลังเชื่อมต่อสภาพอากาศพื้นที่บ้านนอแล...";
+    if (statusEl) statusEl.innerText = "📍 กำลังเชื่อมต่อสภาพอากาศบ้านนอแล...";
 
-    // ตรวจสอบและดึงพิกัด GPS แบบจำกัดเวลา 3 วินาที (ป้องกันอาการค้างถาวร)
     if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
             (position) => {
                 fetchWeatherAPI(position.coords.latitude, position.coords.longitude, "GPS มือถือ");
             }, 
             (error) => {
-                console.warn("GPS bypassed or denied:", error);
+                console.warn("GPS bypass:", error);
                 fetchWeatherAPI(norLaeLat, norLaeLon, "ฐานปฏิบัติการบ้านนอแล");
             }, 
             { timeout: 3000, enableHighAccuracy: false, maximumAge: 60000 }
@@ -65,14 +70,12 @@ async function fetchWeatherByLocation() {
 }
 
 // ==========================================
-// 2. DYNAMIC GRIND CALCULATION ENGINE
+// 4. DYNAMIC GRIND CALCULATION (Timemore Bricks 01S)
 // ==========================================
 function calculateGrind() {
-    const grinderSelectEl = document.getElementById('grinderSelect');
     const roastProfileEl = document.getElementById('roastProfile');
     const roastDateEl = document.getElementById('roastDate');
 
-    const grinderId = grinderSelectEl ? grinderSelectEl.value : 'timemore_bricks_01s';
     const roastProfile = roastProfileEl ? roastProfileEl.value : 'medium';
     const roastDateVal = roastDateEl ? roastDateEl.value : '';
     
@@ -84,21 +87,20 @@ function calculateGrind() {
         ageDays = Math.floor((today - roastDate) / (1000 * 60 * 60 * 24));
     }
 
-    // เรียกใช้ Engine คำนวณเบอร์บดจาก baristaLogicEngine.js โดยตรง
-    const result = calculateGrindSetting({
-        grinderId: grinderId,
-        brewMethod: 'espresso',
-        roastLevel: roastProfile,
-        processType: 'washed'
-    });
+    // คำนวณเบอร์บดตามระดับการคั่วสำหรับ Timemore Bricks 01S
+    let finalSettingClick = BRICKS_CONFIG.baseEspressoClick;
+    let roastNote = "คั่วกลาง (Medium Roast)";
 
-    if (result.error) {
-        console.error(result.error);
-        return;
+    if (roastProfile === 'light') {
+        finalSettingClick -= 4; // คั่วอ่อน บดละเอียดขึ้น
+        roastNote = "คั่วอ่อน (Light Roast)";
+    } else if (roastProfile === 'dark') {
+        finalSettingClick += 5; // คั่วเข้ม บดหยาบขึ้น
+        roastNote = "คั่วเข้ม (Dark Roast)";
     }
 
-    let finalSettingClick = result.finalSettingClick;
     let alertMsg = `✨ เมล็ดอยู่ในช่วงเวลาสกัดที่เหมาะสม (${ageDays} วันหลังคั่ว)`;
+    let warningExtra = "";
 
     // ปรับชดเชยตามอายุเมล็ดกาแฟ (Degassing Effect)
     if (ageDays < 5) {
@@ -109,26 +111,26 @@ function calculateGrind() {
         alertMsg = `ℹ️ เมล็ดคั่วมาแล้ว ${ageDays} วัน เริ่มเก่า ชดเชยโดยการปรับเบอร์บดละเอียดขึ้น`;
     }
 
+    if (roastProfile === 'light') {
+        warningExtra = "คำเตือน: Bricks 01S เฟือง Conical อาจมีแรงบดไม่พอสำหรับคั่วอ่อนมากๆ ในระดับ Espresso";
+    }
+
     // แสดงผลบนหน้าเว็บ
     const grindNumEl = document.getElementById('recommendGrind');
     const adjustReasonEl = document.getElementById('adjustReason');
     const extraAlertEl = document.getElementById('extraAlert');
 
     if (grindNumEl) grindNumEl.innerText = finalSettingClick;
-    if (adjustReasonEl) adjustReasonEl.innerText = `อิงตามเครื่องบด ${result.grinderName}, คั่ว ${roastProfile} และอายุเมล็ด ${ageDays} วัน`;
+    if (adjustReasonEl) adjustReasonEl.innerText = `อิงตามเครื่องบด ${BRICKS_CONFIG.name}, ${roastNote} และอายุเมล็ด ${ageDays} วัน`;
 
-    // ดึง Workflow และข้อควรระวังมาแสดงผล
-    let workflowHtml = "";
-    if (result.workflow && Array.isArray(result.workflow)) {
-        workflowHtml = result.workflow.map(w => `<div>• ${w}</div>`).join('');
-    }
+    let workflowHtml = BRICKS_CONFIG.workflow.map(w => `<div>• ${w}</div>`).join('');
 
     if (extraAlertEl) {
         extraAlertEl.innerHTML = `
             <div>${alertMsg}</div>
-            ${result.warning ? `<div style="color: #ef4444; margin-top: 4px;">⚠️ ${result.warning}</div>` : ''}
-            <div style="margin-top: 8px; font-size: 0.72rem; text-align: left; background: rgba(0,0,0,0.15); padding: 8px; border-radius: 6px;">
-                <div style="font-weight: bold; color: #f59e0b; margin-bottom: 3px;">💡 Workflow แนะนำ:</div>
+            ${warningExtra ? `<div style="color: #ef4444; margin-top: 4px;">⚠️ ${warningExtra}</div>` : ''}
+            <div style="margin-top: 8px; font-size: 0.72rem; text-align: left; background: rgba(0,0,0,0.3); padding: 8px; border-radius: 6px; border: 1px solid #333;">
+                <div style="font-weight: bold; color: var(--accent); margin-bottom: 3px;">💡 Workflow แนะนำ:</div>
                 ${workflowHtml}
             </div>
         `;
@@ -136,7 +138,7 @@ function calculateGrind() {
 }
 
 // ==========================================
-// 3. SUPABASE LOG STORAGE (บันทึกผลการชง)
+// 5. SUPABASE LOG STORAGE (บันทึกผลการชง)
 // ==========================================
 async function saveLogToSupabase() {
     if (!supabaseClient) {
@@ -145,7 +147,7 @@ async function saveLogToSupabase() {
     }
 
     const logData = {
-        grinder_model: document.getElementById('grinderSelect').value,
+        grinder_model: "timemore_bricks_01s",
         bean_name: document.getElementById('beanName').value,
         roast_profile: document.getElementById('roastProfile').value,
         roast_date: document.getElementById('roastDate').value || null,
@@ -166,7 +168,6 @@ async function saveLogToSupabase() {
         if (error) throw error;
         alert('✅ บันทึกผลการสกัดลงฐานข้อมูล Supabase สำเร็จ!');
         
-        // เคลียร์ฟอร์มผลสกัดจริงหลังบันทึก
         document.getElementById('actualYieldG').value = '';
         document.getElementById('preInfusionSec').value = '';
         document.getElementById('shotTimeSec').value = '';
@@ -178,10 +179,9 @@ async function saveLogToSupabase() {
 }
 
 // ==========================================
-// 4. EVENT LISTENERS & INITIALIZATION
+// 6. EVENT LISTENERS & INITIALIZATION
 // ==========================================
 window.addEventListener('DOMContentLoaded', () => {
-    // ตั้งค่าวันที่คั่วเริ่มต้นเป็น 7 วันที่แล้ว
     const defaultDate = new Date();
     defaultDate.setDate(defaultDate.getDate() - 7);
     const roastDateEl = document.getElementById('roastDate');
@@ -189,8 +189,7 @@ window.addEventListener('DOMContentLoaded', () => {
         roastDateEl.value = defaultDate.toISOString().split('T')[0];
     }
 
-    // ผูก Event ให้ฟอร์มคำนวณอัตโนมัติเมื่อมีการเปลี่ยนแปลงค่า
-    ['grinderSelect', 'roastProfile', 'roastDate'].forEach(id => {
+    ['roastProfile', 'roastDate'].forEach(id => {
         const el = document.getElementById(id);
         if (el) {
             el.addEventListener('change', calculateGrind);
@@ -198,19 +197,16 @@ window.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // ผูก Event ให้ปุ่มบันทึกทำงานอย่างถูกต้องในระบบ Module
     const saveBtn = document.getElementById('saveLogBtn');
     if (saveBtn) {
         saveBtn.addEventListener('click', saveLogToSupabase);
     }
 
-    // ผูกปุ่มอัปเดตพิกัด GPS
     const updateGpsBtn = document.getElementById('updateGpsBtn');
     if (updateGpsBtn) {
         updateGpsBtn.addEventListener('click', fetchWeatherByLocation);
     }
 
-    // รันการคำนวณและดึงอากาศเมื่อเปิดหน้าเว็บ
     calculateGrind();
     fetchWeatherByLocation();
 });
