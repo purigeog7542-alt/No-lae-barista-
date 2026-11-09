@@ -80,15 +80,16 @@ function calculateGrind() {
     const roastDateVal = roastDateEl ? roastDateEl.value : '';
     const selectedRange = currentRangeEl ? currentRangeEl.innerText.trim() : 'Medium-fine';
     
-    const currentTemp = tempValEl ? parseFloat(tempValEl.innerText) || 20 : 20; // ค่าเริ่มต้นอุณหียุมิบนดอย
+    const currentTemp = tempValEl ? parseFloat(tempValEl.innerText) || 20 : 20; 
     const currentHum = humValEl ? parseFloat(humValEl.innerText) || 70 : 70;
 
     let baseClicks = 26; 
     
+    // แก้ไขจุด Syntax Error ตรง Medium ให้ใช้เครื่องหมายเท่ากับ (=) ปกติ
     if (selectedRange === 'Extra-fine') baseClicks = 5;
     else if (selectedRange === 'Fine') baseClicks = 12;
     else if (selectedRange === 'Medium-fine') baseClicks = 26; 
-    else if (selectedRange === 'Medium') baseClicks -> 42;      
+    else if (selectedRange === 'Medium') baseClicks = 42;       
     else if (selectedRange === 'Medium-coarse') baseClicks = 85; 
     else if (selectedRange === 'Coarse') baseClicks = 135;   
 
@@ -111,8 +112,6 @@ function calculateGrind() {
 
     let weatherEffectNote = "";
     
-    // 🏔️ [เงื่อนไขเฉพาะร้านบนดอย]:
-    // 1. อากาศหนาวเย็นบนดอย (< 18°C): โลหะของเฟืองบดจะหดตัวเล็กน้อยและเมล็ดกาแฟมีความกรอบขึ้น ส่งผลให้ผงกาแฟละเอียดขึ้นโดยธรรมชาติ จึงต้องปรับเบอร์บดให้ "หยาบขึ้น" เพื่อไม่ให้ช็อตอุดตัน
     if (currentTemp < 18) {
         baseClicks += 2;
         weatherEffectNote += `❄️ อากาศหนาวบนดอย (${currentTemp}°C) ปรับหยาบขึ้น 2 คลิก | `;
@@ -124,7 +123,6 @@ function calculateGrind() {
         weatherEffectNote += `🌡️ อากาศร้อน (${currentTemp}°C) ปรับละเอียดขึ้น 1 คลิก | `;
     }
 
-    // 2. ความชื้นสูง/หมอกลงจัดบนดอย (> 85%): เมล็ดกาแฟและผงกาแฟจะดูดซับความชื้นในอากาศได้ง่ายมาก ทำให้เกิด Channeling น้ำไหลผ่านยาก ระบบจะชดเชยด้วยการปรับ "หยาบขึ้น"
     if (currentHum > 85) {
         baseClicks += 2;
         weatherEffectNote += `🌫️ หมอกลงจัด/ความชื้นสูงมาก (${currentHum}%) ปรับหยาบขึ้น 2 คลิก ป้องกันผงกาแฟจับตัว`;
@@ -169,7 +167,7 @@ function calculateGrind() {
 }
 
 // ==========================================
-// 5. SUPABASE LOG STORAGE (พร้อมระบบสำรอง LocalStorage ปกติ)
+// 5. SUPABASE LOG STORAGE
 // ==========================================
 async function saveLogToSupabase() {
     const grindText = document.getElementById('recommendGrind').innerText;
@@ -339,6 +337,7 @@ window.addEventListener('DOMContentLoaded', () => {
         saveBtn.addEventListener('click', saveLogToSupabase);
     }
 
+    // รองรับทั้งปุ่ม ID เดิม (updateGpsBtn) และ ID ใหม่ (ถ้ามี) เพื่อความเสถียร
     const updateGpsBtn = document.getElementById('updateGpsBtn');
     if (updateGpsBtn) {
         updateGpsBtn.addEventListener('click', fetchSensorFromSupabase);
