@@ -29,7 +29,7 @@
   <!-- Garmin Top Header Navigation -->
   <header class="bg-black/90 sticky top-0 z-50 px-4 py-3 border-b border-zinc-800 flex justify-between items-center max-w-lg mx-auto">
     <div class="flex items-center gap-3">
-      <div class="w-8 h-8 rounded-full bg-zinc-700 overflow-hidden border border-zinc-600 flex items-center justify-center text-xs font-bold text-amber-500">
+      <div class="w-8 h-8 rounded-full bg-zinc-700 overflow-hidden border border-zinc-600 flex items-center justify-center text-xs font-bold text-sky-400">
         NL
       </div>
       <div>
@@ -41,10 +41,10 @@
     </div>
     
     <div class="flex items-center gap-3 text-zinc-300">
-      <button onclick="fetchWeatherData()" title="ซิงค์ข้อมูล" class="hover:text-amber-500 transition p-1 bg-zinc-900 rounded-lg border border-zinc-800">
+      <button onclick="fetchWeatherData()" title="ซิงค์ข้อมูล" class="hover:text-sky-400 transition p-1 bg-zinc-900 rounded-lg border border-zinc-800">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
       </button>
-      <a href="index.html" class="text-xs text-amber-500 font-semibold border border-amber-500/40 px-2.5 py-1 rounded-full bg-amber-500/10 hover:bg-amber-500/20">
+      <a href="index.html" class="text-xs text-sky-400 font-semibold border border-sky-400/40 px-2.5 py-1 rounded-full bg-sky-500/10 hover:bg-sky-500/20">
         กลับหน้าหลัก
       </a>
     </div>
@@ -56,17 +56,17 @@
     <section class="garmin-card p-5">
       <div class="flex justify-between items-center mb-3">
         <span class="text-xs font-semibold text-zinc-400 uppercase tracking-wider flex items-center gap-1.5">
-          <span class="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span> อุณหภูมิปัจจุบัน (CURRENT TEMP)
+          <span class="w-2 h-2 rounded-full bg-sky-400 animate-pulse"></span> อุณหภูมิปัจจุบัน (CURRENT TEMP)
         </span>
         <span id="sync-time" class="text-[10px] text-zinc-500">กำลังซิงค์...</span>
       </div>
 
       <div class="flex items-center justify-around py-2">
-        <!-- Circular Gauge Component -->
+        <!-- Circular Gauge Component (ปรับเส้นวงแหวนเป็นสีฟ้า) -->
         <div class="relative w-32 h-32 flex items-center justify-center">
           <svg class="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
             <path class="text-zinc-800" stroke-width="3" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-            <path class="text-amber-500" stroke-dasharray="75, 100" stroke-width="3.2" stroke-linecap="round" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+            <path class="text-sky-400" stroke-dasharray="75, 100" stroke-width="3.2" stroke-linecap="round" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
           </svg>
           <div class="absolute text-center">
             <div id="garmin-temp" class="text-4xl font-extrabold text-white tracking-tight">--°</div>
@@ -80,7 +80,7 @@
             <div class="text-[10px] text-zinc-400 uppercase font-semibold">สูงสุด (High)</div>
             <div id="garmin-high" class="text-base font-bold text-white">--°C</div>
           </div>
-          <div class="border-l-2 border-sky-500 pl-3">
+          <div class="border-l-2 border-sky-400 pl-3">
             <div class="text-[10px] text-zinc-400 uppercase font-semibold">ต่ำสุด (Low)</div>
             <div id="garmin-low" class="text-base font-bold text-white">--°C</div>
           </div>
@@ -92,7 +92,7 @@
       </div>
     </section>
 
-    <!-- 2-Column Grid Tiles (Garmin Tiles Style) -->
+    <!-- 2-Column Grid Tiles -->
     <div class="grid grid-cols-2 gap-3">
 
       <!-- HUMIDITY TILE -->
@@ -156,13 +156,13 @@
     <section class="garmin-card p-4">
       <div class="flex justify-between items-center mb-3">
         <span class="text-xs font-semibold text-zinc-400 uppercase">แนวโน้มอุณหภูมิรายชั่วโมง (12 ชั่วโมง)</span>
-        <span class="text-[10px] text-amber-500 font-semibold">Real-time</span>
+        <span class="text-[10px] text-sky-400 font-semibold">Real-time</span>
       </div>
 
       <!-- Hourly Icons Scroll -->
       <div class="flex overflow-x-auto gap-4 text-center text-xs scrollbar-none pb-2" id="hourly-container"></div>
 
-      <!-- Line Graph SVG -->
+      <!-- Line Graph SVG (เส้นกราฟและจุดเปลี่ยนเป็นสีฟ้า) -->
       <div class="mt-2 pt-2 border-t border-zinc-800">
         <div class="relative h-16 w-full">
           <svg id="temp-trend-svg" class="w-full h-full overflow-visible" viewBox="0 0 400 50" preserveAspectRatio="none"></svg>
@@ -180,7 +180,7 @@
 
   <!-- Garmin Style Bottom Navigation Bar -->
   <nav class="fixed bottom-0 left-0 right-0 bg-zinc-950 border-t border-zinc-800 py-2.5 px-6 flex justify-between items-center max-w-lg mx-auto z-50 text-center">
-    <div class="text-amber-500 flex flex-col items-center">
+    <div class="text-sky-400 flex flex-col items-center">
       <span class="text-lg">🏠</span>
       <span class="text-[9px] font-medium mt-0.5">ภาพรวม</span>
     </div>
@@ -313,20 +313,22 @@
       }
       pathD += ` T ${points[points.length-1].x} ${points[points.length-1].y}`;
 
+      // กำหนดสีเส้นกราฟเป็นสีฟ้า (#38bdf8)
       const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
       path.setAttribute('d', pathD);
       path.setAttribute('fill', 'none');
-      path.setAttribute('stroke', '#f59e0b');
+      path.setAttribute('stroke', '#38bdf8');
       path.setAttribute('stroke-width', '2.5');
       svg.appendChild(path);
 
+      // กำหนดจุดบนกราฟเป็นสีฟ้า (#38bdf8)
       points.forEach(p => {
         const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
         circle.setAttribute('cx', p.x);
         circle.setAttribute('cy', p.y);
         circle.setAttribute('r', '3');
         circle.setAttribute('fill', '#18181a');
-        circle.setAttribute('stroke', '#f59e0b');
+        circle.setAttribute('stroke', '#38bdf8');
         circle.setAttribute('stroke-width', '2');
         svg.appendChild(circle);
       });
@@ -350,7 +352,7 @@
           <div class="text-sm">${icon}</div>
           <div class="text-zinc-500 w-10 text-right">${dLow}°</div>
           <div class="w-24 bg-zinc-800 h-1.5 rounded-full overflow-hidden mx-2 relative">
-             <div class="bg-amber-500 h-full rounded-full" style="width: 70%; margin-left: 15%;"></div>
+             <div class="bg-sky-400 h-full rounded-full" style="width: 70%; margin-left: 15%;"></div>
           </div>
           <div class="font-bold w-10 text-left text-white">${dHigh}°</div>
         `;
