@@ -3,199 +3,216 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Nor Lae Base - Weather Station</title>
+  <title>Tactical Base Station - Nor Lae</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     body {
-      background-color: #000000;
-      color: #e5e7eb;
+      background-color: #0b1120; /* Navy Black Tactical */
+      color: #cbd5e1;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     }
-    .garmin-card {
-      background-color: #18181a;
-      border: 1px solid #27272a;
-      border-radius: 14px;
+    .tactical-card {
+      background-color: rgba(15, 23, 42, 0.85);
+      border: 1px solid #1e293b;
+      border-radius: 10px;
     }
-    .garmin-icon-bg {
-      background-color: rgba(255, 255, 255, 0.08);
+    .tactical-card-alert {
+      background-color: rgba(127, 29, 29, 0.2);
+      border: 1px solid rgba(239, 68, 68, 0.4);
+      border-radius: 10px;
     }
     .scrollbar-none::-webkit-scrollbar { display: none; }
     .scrollbar-none { -ms-overflow-style: none; scrollbar-width: none; }
   </style>
 </head>
-<body class="min-h-screen pb-24">
+<body class="min-h-screen pb-20">
 
-  <!-- Garmin Top Header Navigation -->
-  <header class="bg-black/90 sticky top-0 z-50 px-4 py-3 border-b border-zinc-800 flex justify-between items-center max-w-lg mx-auto">
+  <!-- Tactical Top Header Bar -->
+  <header class="bg-[#020617] sticky top-0 z-50 px-4 py-2.5 border-b border-slate-800 flex justify-between items-center max-w-4xl mx-auto">
     <div class="flex items-center gap-3">
-      <div class="w-8 h-8 rounded-full bg-zinc-700 overflow-hidden border border-zinc-600 flex items-center justify-center text-xs font-bold text-sky-400">
-        NL
-      </div>
+      <div class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping"></div>
       <div>
-        <div class="text-[10px] text-zinc-400 uppercase tracking-widest font-semibold">BASE STATION</div>
-        <div class="text-xs font-bold text-white flex items-center gap-1">
-          ฐานปฏิบัติการบ้านนอแล <span class="text-[10px] font-normal text-emerald-400">● Live</span>
+        <div class="text-[10px] text-slate-400 uppercase tracking-widest font-bold">TACTICAL ENV MONITOR</div>
+        <div class="text-xs font-bold text-white flex items-center gap-2">
+          ฐานปฏิบัติการบ้านนอแล 
+          <span id="sensor-badge" class="text-[9px] bg-emerald-500/20 text-emerald-400 px-1.5 py-0.5 rounded border border-emerald-500/30">ONLINE (ESP32)</span>
         </div>
       </div>
     </div>
     
-    <div class="flex items-center gap-3 text-zinc-300">
-      <button onclick="fetchWeatherData()" title="ซิงค์ข้อมูล" class="hover:text-sky-400 transition p-1 bg-zinc-900 rounded-lg border border-zinc-800">
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+    <div class="flex items-center gap-2 text-xs">
+      <button onclick="fetchWeatherData()" class="bg-slate-800 hover:bg-slate-700 text-slate-300 px-2.5 py-1 rounded border border-slate-700 transition flex items-center gap-1">
+        🔄 <span class="hidden sm:inline">Sync</span>
       </button>
-      <a href="index.html" class="text-xs text-sky-400 font-semibold border border-sky-400/40 px-2.5 py-1 rounded-full bg-sky-500/10 hover:bg-sky-500/20">
-        กลับหน้าหลัก
+      <a href="index.html" class="bg-cyan-950 hover:bg-cyan-900 text-cyan-400 px-3 py-1 rounded border border-cyan-800 font-medium">
+        ← Main OS
       </a>
     </div>
   </header>
 
-  <main class="max-w-lg mx-auto p-4 space-y-3.5">
+  <main class="max-w-4xl mx-auto p-3 sm:p-4 space-y-3">
 
-    <!-- Primary Hero Card: Temperature Gauge & Thai Details -->
-    <section class="garmin-card p-5">
-      <div class="flex justify-between items-center mb-3">
-        <span class="text-xs font-semibold text-zinc-400 uppercase tracking-wider flex items-center gap-1.5">
-          <span class="w-2 h-2 rounded-full bg-sky-400 animate-pulse"></span> อุณหภูมิปัจจุบัน (CURRENT TEMP)
-        </span>
-        <span id="sync-time" class="text-[10px] text-zinc-500">กำลังซิงค์...</span>
-      </div>
-
-      <div class="flex items-center justify-around py-2">
-        <!-- Circular Gauge Component (ปรับเส้นวงแหวนเป็นสีฟ้า) -->
-        <div class="relative w-32 h-32 flex items-center justify-center">
-          <svg class="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
-            <path class="text-zinc-800" stroke-width="3" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-            <path class="text-sky-400" stroke-dasharray="75, 100" stroke-width="3.2" stroke-linecap="round" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-          </svg>
-          <div class="absolute text-center">
-            <div id="garmin-temp" class="text-4xl font-extrabold text-white tracking-tight">--°</div>
-            <div id="garmin-condition" class="text-[11px] text-zinc-300 font-medium mt-0.5">หมอกหนา</div>
-          </div>
-        </div>
-
-        <!-- High / Low Metrics -->
-        <div class="space-y-2.5 text-left">
-          <div class="border-l-2 border-red-500 pl-3">
-            <div class="text-[10px] text-zinc-400 uppercase font-semibold">สูงสุด (High)</div>
-            <div id="garmin-high" class="text-base font-bold text-white">--°C</div>
-          </div>
-          <div class="border-l-2 border-sky-400 pl-3">
-            <div class="text-[10px] text-zinc-400 uppercase font-semibold">ต่ำสุด (Low)</div>
-            <div id="garmin-low" class="text-base font-bold text-white">--°C</div>
-          </div>
-          <div class="border-l-2 border-emerald-500 pl-3">
-            <div class="text-[10px] text-zinc-400 uppercase font-semibold">รู้สึกจริง (Feels)</div>
-            <div id="garmin-feels" class="text-base font-bold text-white">--°C</div>
-          </div>
+    <!-- Environmental Alert Banner (ถ้าความชื้น >= 95 หรือมีหมอกหนา) -->
+    <div id="alert-banner" class="tactical-card-alert p-3 hidden flex items-center justify-between text-xs">
+      <div class="flex items-center gap-2">
+        <span class="text-red-400 text-base">⚠️</span>
+        <div>
+          <strong class="text-red-300">TACTICAL ALERT:</strong> 
+          <span id="alert-text" class="text-red-200">ตรวจพบความชื้น 100% / หมอกหนาจัด ทัศนวิสัยต่ำกว่า 1 กม.</span>
         </div>
       </div>
-    </section>
+      <span class="text-[10px] bg-red-500/30 text-red-300 px-2 py-0.5 rounded uppercase font-semibold">Critical</span>
+    </div>
 
-    <!-- 2-Column Grid Tiles -->
-    <div class="grid grid-cols-2 gap-3">
+    <!-- Main Grid Layout for Tactical Dashboard -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
 
-      <!-- HUMIDITY TILE -->
-      <section class="garmin-card p-4 flex flex-col justify-between h-36">
-        <div class="flex justify-between items-start">
-          <span class="text-[11px] font-semibold text-zinc-400 uppercase">ความชื้น (Humidity)</span>
-          <div class="p-1.5 rounded-full garmin-icon-bg text-sky-400">💧</div>
-        </div>
-        <div>
-          <div id="garmin-humidity" class="text-2xl font-bold text-white">--%</div>
-          <div id="garmin-dewpoint" class="text-[10px] text-zinc-400 mt-1">จุดน้ำค้าง: --°C</div>
-        </div>
-      </section>
-
-      <!-- BAROMETER TILE -->
-      <section class="garmin-card p-4 flex flex-col justify-between h-36">
-        <div class="flex justify-between items-start">
-          <span class="text-[11px] font-semibold text-zinc-400 uppercase">ความกดอากาศ</span>
-          <div class="p-1.5 rounded-full garmin-icon-bg text-emerald-400">⏲️</div>
-        </div>
-        <div>
-          <div id="garmin-pressure" class="text-2xl font-bold text-white">-- <span class="text-xs font-normal">hPa</span></div>
-          <div class="text-[10px] text-zinc-400 mt-1">สถานีพื้นที่สูงบ้านนอแล</div>
-        </div>
-      </section>
-
-      <!-- SUNRISE & SUNSET TILE -->
-      <section class="garmin-card p-4 flex flex-col justify-between h-36">
-        <div class="flex justify-between items-start">
-          <span class="text-[11px] font-semibold text-zinc-400 uppercase">ดวงอาทิตย์ (Sun)</span>
-          <div class="p-1.5 rounded-full garmin-icon-bg text-amber-400">🌅</div>
-        </div>
-        <div class="space-y-1">
-          <div class="flex justify-between text-xs">
-            <span class="text-zinc-400">ขึ้น:</span>
-            <span class="font-bold text-white">06:22 น.</span>
+      <!-- Column 1 & 2: Primary Temperature & Hourly Trend -->
+      <div class="md:col-span-2 space-y-3">
+        
+        <!-- Temperature Hero Card -->
+        <section class="tactical-card p-4 flex flex-col sm:flex-row justify-between items-center">
+          <div class="text-center sm:text-left">
+            <div class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">อุณหภูมิหน้างาน (Ambient Temp)</div>
+            <div id="tactical-temp" class="text-6xl font-extrabold text-white tracking-tighter my-1">--°C</div>
+            <div id="tactical-condition" class="text-xs font-semibold text-cyan-400">กำลังประมวลผลเซนเซอร์...</div>
           </div>
-          <div class="flex justify-between text-xs">
-            <span class="text-zinc-400">ตก:</span>
-            <span class="font-bold text-white">18:05 น.</span>
+          
+          <div class="grid grid-cols-3 sm:grid-cols-1 gap-2 mt-3 sm:mt-0 text-right sm:border-l sm:border-slate-800 sm:pl-6 w-full sm:w-auto">
+            <div class="bg-slate-900/60 p-2 sm:bg-transparent sm:p-0 rounded">
+              <div class="text-[9px] text-slate-400 uppercase">สูงสุด (High)</div>
+              <div id="tactical-high" class="text-sm font-bold text-red-400">--°C</div>
+            </div>
+            <div class="bg-slate-900/60 p-2 sm:bg-transparent sm:p-0 rounded">
+              <div class="text-[9px] text-slate-400 uppercase">ต่ำสุด (Low)</div>
+              <div id="tactical-low" class="text-sm font-bold text-cyan-400">--°C</div>
+            </div>
+            <div class="bg-slate-900/60 p-2 sm:bg-transparent sm:p-0 rounded">
+              <div class="text-[9px] text-slate-400 uppercase">รู้สึกจริง (Feels)</div>
+              <div id="tactical-feels" class="text-sm font-bold text-amber-400">--°C</div>
+            </div>
           </div>
-          <div class="text-[9px] text-emerald-400 text-right mt-0.5">แสงแรกบนดอย</div>
-        </div>
+        </section>
+
+        <!-- Hourly Trend & SVG Chart Card -->
+        <section class="tactical-card p-4">
+          <div class="flex justify-between items-center mb-2">
+            <span class="text-xs font-bold text-slate-300 uppercase flex items-center gap-1.5">
+              <span>📈</span> แนวโน้มอุณหภูมิรายชั่วโมง (12-Hour Trend)
+            </span>
+            <span class="text-[10px] text-cyan-400 font-mono" id="last-sync-time">SYNC: --:--:--</span>
+          </div>
+
+          <!-- Hourly Scroll -->
+          <div class="flex overflow-x-auto gap-4 text-center text-xs scrollbar-none py-1" id="hourly-container"></div>
+
+          <!-- SVG Chart -->
+          <div class="mt-2 pt-2 border-t border-slate-800/80">
+            <div class="relative h-14 w-full">
+              <svg id="temp-trend-svg" class="w-full h-full overflow-visible" viewBox="0 0 400 45" preserveAspectRatio="none"></svg>
+            </div>
+          </div>
+        </section>
+
+      </div>
+
+      <!-- Column 3: Sensor Metrics Cards -->
+      <div class="space-y-3">
+
+        <!-- Humidity Card -->
+        <section class="tactical-card p-3.5 flex flex-col justify-between">
+          <div class="flex justify-between items-start">
+            <span class="text-[10px] font-bold text-slate-400 uppercase">ความชื้นสัมพัทธ์ (RH)</span>
+            <span class="text-cyan-400 text-sm">💧</span>
+          </div>
+          <div class="my-1">
+            <div id="tactical-humidity" class="text-2xl font-extrabold text-white">--%</div>
+            <div id="tactical-dewpoint" class="text-[10px] text-slate-400">Dew Point: --°C</div>
+          </div>
+        </section>
+
+        <!-- Barometer Card -->
+        <section class="tactical-card p-3.5 flex flex-col justify-between">
+          <div class="flex justify-between items-start">
+            <span class="text-[10px] font-bold text-slate-400 uppercase">ความกดอากาศ (Pressure)</span>
+            <span class="text-emerald-400 text-sm">⏲️</span>
+          </div>
+          <div class="my-1">
+            <div id="tactical-pressure" class="text-2xl font-extrabold text-white">-- <span class="text-xs font-normal text-slate-400">hPa</span></div>
+            <div class="text-[10px] text-slate-400">High Altitude Station</div>
+          </div>
+        </section>
+
+        <!-- Visibility Card -->
+        <section class="tactical-card p-3.5 flex flex-col justify-between">
+          <div class="flex justify-between items-start">
+            <span class="text-[10px] font-bold text-slate-400 uppercase">ทัศนวิสัย (Visibility)</span>
+            <span class="text-amber-400 text-sm">👁️</span>
+          </div>
+          <div class="my-1">
+            <div id="tactical-vis" class="text-2xl font-extrabold text-white">-- km</div>
+            <div id="tactical-vis-desc" class="text-[10px] text-slate-400">ประเมินจากระดับหมอก</div>
+          </div>
+        </section>
+
+      </div>
+
+    </div>
+
+    <!-- Bottom Section: 5-Day Forecast & Sun Schedule -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+
+      <!-- 5-Day Forecast -->
+      <section class="tactical-card p-4">
+        <div class="text-xs font-bold text-slate-300 uppercase mb-2">พยากรณ์อากาศ 5 วันล่วงหน้า (5-Day Outlook)</div>
+        <div id="daily-forecast" class="space-y-2"></div>
       </section>
 
-      <!-- VISIBILITY TILE -->
-      <section class="garmin-card p-4 flex flex-col justify-between h-36">
-        <div class="flex justify-between items-start">
-          <span class="text-[11px] font-semibold text-zinc-400 uppercase">ทัศนวิสัย (Visibility)</span>
-          <div class="p-1.5 rounded-full garmin-icon-bg text-amber-400">👁️</div>
-        </div>
+      <!-- Sun Schedule & System Diagnostics -->
+      <section class="tactical-card p-4 flex flex-col justify-between space-y-3">
         <div>
-          <div id="garmin-vis" class="text-2xl font-bold text-white">-- km</div>
-          <div id="garmin-vis-desc" class="text-[10px] text-zinc-400 mt-1">ระดับหมอกหนา</div>
+          <div class="text-xs font-bold text-slate-300 uppercase mb-2">ข้อมูลดวงอาทิตย์ & สถานะอุปกรณ์</div>
+          <div class="grid grid-cols-2 gap-2 text-xs bg-slate-900/50 p-2.5 rounded border border-slate-800">
+            <div>
+              <div class="text-[10px] text-slate-400">🌅 ดวงอาทิตย์ขึ้น</div>
+              <div class="font-bold text-white mt-0.5">06:22 น.</div>
+            </div>
+            <div>
+              <div class="text-[10px] text-slate-400">🌇 ดวงอาทิตย์ตก</div>
+              <div class="font-bold text-white mt-0.5">18:05 น.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="text-[10px] text-slate-400 border-t border-slate-800 pt-2 flex justify-between items-center font-mono">
+          <span>DEVICE: <strong id="device-id-text" class="text-cyan-400">30_base_norlae</strong></span>
+          <span>DATABASE: <strong class="text-emerald-400">SUPABASE LIVE</strong></span>
         </div>
       </section>
 
     </div>
-
-    <!-- Temperature Trend Line Graph Card -->
-    <section class="garmin-card p-4">
-      <div class="flex justify-between items-center mb-3">
-        <span class="text-xs font-semibold text-zinc-400 uppercase">แนวโน้มอุณหภูมิรายชั่วโมง (12 ชั่วโมง)</span>
-        <span class="text-[10px] text-sky-400 font-semibold">Real-time</span>
-      </div>
-
-      <!-- Hourly Icons Scroll -->
-      <div class="flex overflow-x-auto gap-4 text-center text-xs scrollbar-none pb-2" id="hourly-container"></div>
-
-      <!-- Line Graph SVG (เส้นกราฟและจุดเปลี่ยนเป็นสีฟ้า) -->
-      <div class="mt-2 pt-2 border-t border-zinc-800">
-        <div class="relative h-16 w-full">
-          <svg id="temp-trend-svg" class="w-full h-full overflow-visible" viewBox="0 0 400 50" preserveAspectRatio="none"></svg>
-        </div>
-      </div>
-    </section>
-
-    <!-- 5-Day Forecast Card -->
-    <section class="garmin-card p-4">
-      <div class="text-xs font-semibold text-zinc-400 uppercase mb-3">พยากรณ์อากาศ 5 วันล่วงหน้า</div>
-      <div id="daily-forecast" class="space-y-3"></div>
-    </section>
 
   </main>
 
-  <!-- Garmin Style Bottom Navigation Bar -->
-  <nav class="fixed bottom-0 left-0 right-0 bg-zinc-950 border-t border-zinc-800 py-2.5 px-6 flex justify-between items-center max-w-lg mx-auto z-50 text-center">
-    <div class="text-sky-400 flex flex-col items-center">
-      <span class="text-lg">🏠</span>
-      <span class="text-[9px] font-medium mt-0.5">ภาพรวม</span>
-    </div>
-    <div class="text-zinc-500 flex flex-col items-center hover:text-zinc-300">
-      <span class="text-lg">📊</span>
-      <span class="text-[9px] font-medium mt-0.5">สถิติ</span>
-    </div>
-    <div class="text-zinc-500 flex flex-col items-center hover:text-zinc-300">
-      <span class="text-lg">📅</span>
-      <span class="text-[9px] font-medium mt-0.5">ปฏิทิน</span>
-    </div>
-    <div class="text-zinc-500 flex flex-col items-center hover:text-zinc-300">
-      <span class="text-lg">⚙️</span>
-      <span class="text-[9px] font-medium mt-0.5">อุปกรณ์</span>
-    </div>
+  <!-- Tactical Bottom Navigation Bar -->
+  <nav class="fixed bottom-0 left-0 right-0 bg-[#020617] border-t border-slate-800 py-2 px-4 flex justify-around items-center max-w-4xl mx-auto z-50 text-center text-xs">
+    <a href="#" class="text-cyan-400 flex flex-col items-center">
+      <span class="text-base">📡</span>
+      <span class="text-[9px] font-bold mt-0.5">Dashboard</span>
+    </a>
+    <a href="#" onclick="alert('ฟังก์ชันหน้าสถิติ (Analytics) กำลังพัฒนาต่อยอด')" class="text-slate-400 hover:text-slate-200 flex flex-col items-center">
+      <span class="text-base">📊</span>
+      <span class="text-[9px] font-medium mt-0.5">Analytics</span>
+    </a>
+    <a href="#" onclick="alert('ฟังก์ชันหน้าประวัติ (Historical Logs) กำลังพัฒนาต่อยอด')" class="text-slate-400 hover:text-slate-200 flex flex-col items-center">
+      <span class="text-base">📋</span>
+      <span class="text-[9px] font-medium mt-0.5">History</span>
+    </a>
+    <a href="#" onclick="alert('ฟังก์ชันตั้งค่า Sensor (Diagnostics) กำลังพัฒนาต่อยอด')" class="text-slate-400 hover:text-slate-200 flex flex-col items-center">
+      <span class="text-base">⚙️</span>
+      <span class="text-[9px] font-medium mt-0.5">Sensor Config</span>
+    </a>
   </nav>
 
   <script>
@@ -219,43 +236,52 @@
           const hum = latest.humidity;
           const press = latest.pressure || 862;
 
-          document.getElementById('garmin-temp').innerText = `${Math.round(temp)}°`;
+          document.getElementById('tactical-temp').innerText = `${Math.round(temp)}°C`;
+          document.getElementById('device-id-text').innerText = latest.device_id || '30_base_norlae';
           
-          let condition = "อากาศแจ่มใส";
-          if (hum >= 95) condition = "หมอกลงจัด";
-          else if (hum >= 80) condition = "มีเมฆมาก";
-          else if (hum >= 60) condition = "เมฆบางส่วน";
-          document.getElementById('garmin-condition').innerText = condition;
+          let condition = "สภาวะอากาศปกติ (Stable)";
+          let alertBox = document.getElementById('alert-banner');
+          
+          if (hum >= 95) {
+            condition = "⚠️ หมอกหนาแน่น ทัศนวิสัยต่ำ (Heavy Fog)";
+            alertBox.classList.remove('hidden');
+          } else if (hum >= 85) {
+            condition = "☁️ มีหมอกและความชื้นสูง (Mist / High Humidity)";
+            alertBox.classList.remove('hidden');
+          } else {
+            alertBox.classList.add('hidden');
+          }
+          document.getElementById('tactical-condition').innerText = condition;
 
           const highTemp = Math.round(temp + 2.0);
           const lowTemp = Math.round(temp - 4.5);
-          document.getElementById('garmin-high').innerText = `${highTemp}°C`;
-          document.getElementById('garmin-low').innerText = `${lowTemp}°C`;
+          document.getElementById('tactical-high').innerText = `${highTemp}°C`;
+          document.getElementById('tactical-low').innerText = `${lowTemp}°C`;
 
           const feelsLike = Math.round(temp - (hum > 80 ? 1.5 : 0.5));
-          document.getElementById('garmin-feels').innerText = `${feelsLike}°C`;
+          document.getElementById('tactical-feels').innerText = `${feelsLike}°C`;
 
-          document.getElementById('garmin-humidity').innerText = `${Math.round(hum)}%`;
+          document.getElementById('tactical-humidity').innerText = `${Math.round(hum)}%`;
           const dewPoint = Math.round(temp - ((100 - hum) / 5));
-          document.getElementById('garmin-dewpoint').innerText = `จุดน้ำค้าง: ${dewPoint}°C`;
+          document.getElementById('tactical-dewpoint').innerText = `Dew Point: ${dewPoint}°C`;
 
-          document.getElementById('garmin-pressure').innerText = `${press.toFixed(1)}`;
+          document.getElementById('tactical-pressure').innerText = `${press.toFixed(1)}`;
 
           let visibility = 10;
-          let visDesc = "มองเห็นชัดเจน";
-          if (hum >= 98) { visibility = 1; visDesc = "หมอกหนาทัศนวิสัยต่ำ"; }
-          else if (hum >= 85) { visibility = 3; visDesc = "มีหมอกปานกลาง"; }
-          document.getElementById('garmin-vis').innerText = `${visibility} km`;
-          document.getElementById('garmin-vis-desc').innerText = visDesc;
+          let visDesc = "ทัศนวิสัยดี (Clear)";
+          if (hum >= 98) { visibility = 0.8; visDesc = "ต่ำกว่า 1 กม. (Dense Fog)"; }
+          else if (hum >= 85) { visibility = 3.0; visDesc = "ประมาณ 3 กม. (Mist)"; }
+          document.getElementById('tactical-vis').innerText = `${visibility} km`;
+          document.getElementById('tactical-vis-desc').innerText = visDesc;
 
           generateHourlyAndChart(temp, hum);
           generateDaily(highTemp, lowTemp, hum);
 
           const timeStr = new Date(latest.created_at).toLocaleTimeString('th-TH');
-          document.getElementById('sync-time').innerText = `ซิงค์ ${timeStr}`;
+          document.getElementById('last-sync-time').innerText = `SYNC: ${timeStr}`;
         }
       } catch (err) {
-        console.error(err);
+        console.error("Supabase Error:", err);
       }
     }
 
@@ -270,7 +296,7 @@
 
       for (let i = 0; i < 9; i++) {
         const hour = (nowHour + i) % 24;
-        const timeLabel = i === 0 ? 'ตอนนี้' : `${hour.toString().padStart(2, '0')}:00`;
+        const timeLabel = i === 0 ? 'NOW' : `${hour.toString().padStart(2, '0')}:00`;
         
         const tempVariation = Math.sin((i - 2) / 2.5) * 2.0;
         const hTemp = Math.round(currentTemp + tempVariation);
@@ -281,11 +307,11 @@
         else if (currentHum >= 75) icon = "⛅";
 
         const item = document.createElement('div');
-        item.className = 'flex-shrink-0 flex flex-col items-center min-w-[48px]';
+        item.className = 'flex-shrink-0 flex flex-col items-center min-w-[48px] bg-slate-900/40 p-1 rounded border border-slate-800/60';
         item.innerHTML = `
-          <div class="text-zinc-500 text-[10px]">${timeLabel}</div>
+          <div class="text-slate-400 text-[9px] font-mono">${timeLabel}</div>
           <div class="my-1 text-sm">${icon}</div>
-          <div class="font-bold text-white text-xs">${hTemp}°</div>
+          <div class="font-bold text-cyan-400 text-xs">${hTemp}°</div>
         `;
         container.appendChild(item);
       }
@@ -295,8 +321,8 @@
       const rangeT = maxT - minT || 1;
       
       const svgWidth = 400;
-      const svgHeight = 50;
-      const padding = 12;
+      const svgHeight = 45;
+      const padding = 10;
       const usableHeight = svgHeight - (padding * 2);
 
       let points = temps.map((t, idx) => {
@@ -313,23 +339,21 @@
       }
       pathD += ` T ${points[points.length-1].x} ${points[points.length-1].y}`;
 
-      // กำหนดสีเส้นกราฟเป็นสีฟ้า (#38bdf8)
       const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
       path.setAttribute('d', pathD);
       path.setAttribute('fill', 'none');
       path.setAttribute('stroke', '#38bdf8');
-      path.setAttribute('stroke-width', '2.5');
+      path.setAttribute('stroke-width', '2');
       svg.appendChild(path);
 
-      // กำหนดจุดบนกราฟเป็นสีฟ้า (#38bdf8)
       points.forEach(p => {
         const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
         circle.setAttribute('cx', p.x);
         circle.setAttribute('cy', p.y);
-        circle.setAttribute('r', '3');
-        circle.setAttribute('fill', '#18181a');
+        circle.setAttribute('r', '2.5');
+        circle.setAttribute('fill', '#0f172a');
         circle.setAttribute('stroke', '#38bdf8');
-        circle.setAttribute('stroke-width', '2');
+        circle.setAttribute('stroke-width', '1.5');
         svg.appendChild(circle);
       });
     }
@@ -346,15 +370,15 @@
         let icon = hum > 85 ? "🌧️" : "⛅";
 
         const row = document.createElement('div');
-        row.className = 'flex justify-between items-center text-xs py-1 border-b border-zinc-800 last:border-0';
+        row.className = 'flex justify-between items-center text-xs py-1.5 px-2 bg-slate-900/40 rounded border border-slate-800/60';
         row.innerHTML = `
-          <div class="w-16 font-semibold text-zinc-300">${day}</div>
+          <div class="w-16 font-semibold text-slate-300">${day}</div>
           <div class="text-sm">${icon}</div>
-          <div class="text-zinc-500 w-10 text-right">${dLow}°</div>
-          <div class="w-24 bg-zinc-800 h-1.5 rounded-full overflow-hidden mx-2 relative">
-             <div class="bg-sky-400 h-full rounded-full" style="width: 70%; margin-left: 15%;"></div>
+          <div class="text-cyan-400 w-10 text-right font-mono">${dLow}°</div>
+          <div class="w-24 bg-slate-800 h-1.5 rounded-full overflow-hidden mx-2 relative">
+             <div class="bg-gradient-to-r from-cyan-400 to-amber-400 h-full rounded-full" style="width: 70%; margin-left: 15%;"></div>
           </div>
-          <div class="font-bold w-10 text-left text-white">${dHigh}°</div>
+          <div class="font-bold w-10 text-left text-red-400 font-mono">${dHigh}°</div>
         `;
         dailyContainer.appendChild(row);
       });
