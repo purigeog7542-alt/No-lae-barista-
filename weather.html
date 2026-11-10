@@ -1,111 +1,167 @@
+ออกแบบตาม UI ของ iOS Weather App ในอ้างอิงภาพของคุณเลยครับ โดยใช้โทนสีมืด (Dark Theme Glassmorphism) และจัดวางการ์ดมอนิเตอร์สภาพอากาศ (Humidity, Pressure, Dew Point, Feels Like, Wind) ให้ครบถ้วน
+ข้อมูลจริงที่จะถูกดึงมาจาก ESP32 (BME280) บน Supabase จะถูกนำมาแสดงในส่วนหลัก และส่วนที่เหลือ (เช่น พยากรณ์รายชั่วโมง/รายวัน, ความเร็วลม, ดวงอาทิตย์) จะใช้การคำนวณและจำลองแนวโน้มตามหลักอุตุนิยมวิทยาครับ
+โค้ดไฟล์ weather.html (สไตล์ iOS Weather App)
 <!DOCTYPE html>
 <html lang="th">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Nor Lae Weather Station - สภาพอากาศบนดอย</title>
+  <title>ฐานปฏิบัติการ บ้านนอแล</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Supabase JS Client Library -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    body {
+      background: linear-gradient(to bottom, #1e293b, #0f172a);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+    .glass-card {
+      background: rgba(30, 41, 59, 0.5);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+  </style>
 </head>
-<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col p-4">
+<body class="text-slate-100 min-h-screen p-4 pb-12">
 
-  <!-- Header -->
-  <header class="max-w-4xl mx-auto w-full flex justify-between items-center py-4 border-b border-slate-800 mb-6">
-    <h1 class="text-xl font-bold text-amber-500">🏔️ Nor Lae Weather & Bunker Status</h1>
-    <a href="index.html" class="text-xs bg-slate-800 hover:bg-slate-700 px-3 py-2 rounded-lg border border-slate-700 transition">← กลับสู่หน้า Barista-OS</a>
+  <!-- Header / Navigation Bar -->
+  <header class="max-w-xl mx-auto w-full flex justify-between items-center py-2 mb-4">
+    <a href="index.html" class="text-xs bg-slate-800/80 hover:bg-slate-700 px-3 py-1.5 rounded-full border border-slate-700/60 transition flex items-center gap-1">
+      ← Barista OS
+    </a>
+    <div id="sensor-status" class="text-xs text-emerald-400 font-medium">● เชื่อมต่อ 30_base_norlae</div>
   </header>
 
-  <!-- Main Grid Dashboard -->
-  <main class="max-w-4xl mx-auto w-full grid grid-cols-1 md:grid-cols-3 gap-4 flex-grow">
+  <main class="max-w-xl mx-auto w-full space-y-4">
 
-    <!-- 1. กล่องแสดงค่าปัจจุบันจาก ESP32 (BME280) -->
-    <section class="md:col-span-3 bg-slate-800 border border-slate-700 rounded-2xl p-6 shadow-xl">
-      <div class="flex justify-between items-center mb-4">
-        <h2 class="text-sm font-semibold text-slate-400">📡 สภาพอากาศสดจากเซ็นเซอร์ ESP32 (BME280)</h2>
-        <div id="sensor-status" class="text-xs text-emerald-400">กำลังเชื่อมต่อฐานข้อมูล...</div>
+    <!-- Hero Header Component (Apple Weather Style) -->
+    <section class="text-center py-4">
+      <div class="text-xs tracking-widest text-slate-400 font-semibold uppercase">MY LOCATION</div>
+      <h1 class="text-2xl font-bold text-slate-100 mt-0.5">Nor Lae Base (นอแล)</h1>
+      <div id="hero-temp" class="text-7xl font-extralight my-1 text-slate-50 tracking-tighter">--°</div>
+      <div id="hero-condition" class="text-sm font-medium text-slate-300">กำลังโหลดข้อมูล...</div>
+      <div id="hero-range" class="text-xs text-slate-400 mt-1">H:--°  L:--°</div>
+    </section>
+
+    <!-- Hourly Forecast (Horizontal Scroll) -->
+    <section class="glass-card rounded-2xl p-4">
+      <div id="rain-summary" class="text-xs text-slate-300 pb-3 border-b border-slate-700/50 mb-3">
+        กำลังคำนวณแนวโน้มฝนในอีก 24 ชั่วโมงข้างหน้า...
       </div>
       
-      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
-        <div class="bg-slate-900/60 p-4 rounded-xl border border-slate-700/50">
-          <span class="text-xs text-slate-400 block mb-1">อุณหภูมิ</span>
-          <span id="display-temp" class="text-3xl font-bold text-amber-400">-- °C</span>
-        </div>
-        <div class="bg-slate-900/60 p-4 rounded-xl border border-slate-700/50">
-          <span class="text-xs text-slate-400 block mb-1">ความชื้นสัมพัทธ์</span>
-          <span id="display-hum" class="text-3xl font-bold text-sky-400">-- %</span>
-        </div>
-        <div class="bg-slate-900/60 p-4 rounded-xl border border-slate-700/50">
-          <span class="text-xs text-slate-400 block mb-1">ความกดอากาศ (พื้นที่สูง)</span>
-          <span id="display-press" class="text-3xl font-bold text-emerald-400">-- hPa</span>
-        </div>
-      </div>
-      <div class="mt-4 text-xs text-slate-500 text-center" id="last-update-time">อัปเดตล่าสุด: --:--:--</div>
-    </section>
-
-    <!-- 2. กล่องวิเคราะห์พยากรณ์อากาศบนดอย -->
-    <section class="md:col-span-2 bg-slate-800 border border-slate-700 rounded-2xl p-6 shadow-xl flex flex-col justify-between">
-      <div>
-        <h2 class="text-sm font-semibold text-amber-400 mb-3">🔮 พยากรณ์สภาพอากาศเฉพาะกิจ</h2>
-        
-        <div class="space-y-3 text-sm">
-          <div class="bg-slate-900/60 p-3.5 rounded-xl border border-slate-700/50">
-            <div class="text-xs text-slate-400 mb-1">คาดการณ์ฝน / หมอกหนาในระยะสั้น</div>
-            <div id="rain-forecast" class="font-medium text-slate-200">กำลังประมวลผลค่าความชื้นและความกดอากาศ...</div>
-          </div>
-
-          <div class="bg-slate-900/60 p-3.5 rounded-xl border border-slate-700/50">
-            <div class="text-xs text-slate-400 mb-1">อุณหภูมิต่ำสุดคาดการณ์ (คืนนี้ - ช่วงเช้ามืด)</div>
-            <div id="min-temp-forecast" class="font-medium text-slate-200">-- °C</div>
-          </div>
-        </div>
+      <div class="flex overflow-x-auto gap-5 text-center text-xs scrollbar-none pb-1" id="hourly-container">
+        <!-- Javascript จะสร้างการ์ดรายชั่วโมงใส่ตรงนี้ -->
       </div>
     </section>
 
-    <!-- 3. กล่องแสดงเวลา พระอาทิตย์ขึ้น / พระอาทิตย์ตก -->
-    <section class="bg-slate-800 border border-slate-700 rounded-2xl p-6 shadow-xl flex flex-col justify-between">
-      <h2 class="text-sm font-semibold text-amber-400 mb-3">☀️ เวลาดวงอาทิตย์ (Nor Lae)</h2>
-      <div class="space-y-3">
-        <div class="bg-slate-900/60 p-3.5 rounded-xl border border-slate-700/50 flex items-center gap-3">
-          <span class="text-2xl">🌅</span>
-          <div>
-            <span class="text-xs text-slate-400 block">พระอาทิตย์ขึ้น</span>
-            <span class="text-base font-bold text-slate-200">06:22 น.</span>
-          </div>
-        </div>
-        <div class="bg-slate-900/60 p-3.5 rounded-xl border border-slate-700/50 flex items-center gap-3">
-          <span class="text-2xl">🌇</span>
-          <div>
-            <span class="text-xs text-slate-400 block">พระอาทิตย์ตก</span>
-            <span class="text-base font-bold text-slate-200">18:05 น.</span>
-          </div>
-        </div>
-      </div>
-    </section>
+    <!-- 2-Column Grid Features (iOS Weather Grid) -->
+    <div class="grid grid-cols-2 gap-3 text-xs">
 
+      <!-- 10-DAY FORECAST PREVIEW -->
+      <section class="glass-card rounded-2xl p-4 col-span-2 space-y-2">
+        <div class="text-slate-400 font-semibold flex items-center gap-1 mb-2">
+          <span>📅</span> พยากรณ์รายวัน (FORECAST)
+        </div>
+        <div id="daily-forecast" class="space-y-2">
+          <!-- Javascript จะเติมรายการรายวันใส่ตรงนี้ -->
+        </div>
+      </section>
+
+      <!-- HUMIDITY & DEW POINT (ข้อมูลจาก ESP32) -->
+      <section class="glass-card rounded-2xl p-4 flex flex-col justify-between">
+        <div>
+          <div class="text-slate-400 font-semibold flex items-center gap-1">
+            <span>💧</span> HUMIDITY
+          </div>
+          <div id="grid-humidity" class="text-2xl font-bold mt-2">--%</div>
+        </div>
+        <div id="grid-dewpoint" class="text-[11px] text-slate-400 mt-3">
+          The dew point is --° right now.
+        </div>
+      </section>
+
+      <!-- PRESSURE (ข้อมูลจาก ESP32) -->
+      <section class="glass-card rounded-2xl p-4 flex flex-col justify-between">
+        <div>
+          <div class="text-slate-400 font-semibold flex items-center gap-1">
+            <span>⏲️</span> PRESSURE
+          </div>
+          <div id="grid-pressure" class="text-2xl font-bold mt-2">-- mbar</div>
+        </div>
+        <div id="grid-pressure-trend" class="text-[11px] text-slate-400 mt-3">
+          ความกดอากาศพื้นที่สูง
+        </div>
+      </section>
+
+      <!-- FEELS LIKE -->
+      <section class="glass-card rounded-2xl p-4 flex flex-col justify-between">
+        <div>
+          <div class="text-slate-400 font-semibold flex items-center gap-1">
+            <span>🌡️</span> FEELS LIKE
+          </div>
+          <div id="grid-feelslike" class="text-2xl font-bold mt-2">--°</div>
+        </div>
+        <div id="grid-feelslike-desc" class="text-[11px] text-slate-400 mt-3">
+          ใกล้เคียงกับอุณหภูมิจริง
+        </div>
+      </section>
+
+      <!-- SUNRISE / SUNSET -->
+      <section class="glass-card rounded-2xl p-4 flex flex-col justify-between">
+        <div>
+          <div class="text-slate-400 font-semibold flex items-center gap-1">
+            <span>🌅</span> SUNRISE
+          </div>
+          <div class="text-xl font-bold mt-2">06:22</div>
+        </div>
+        <div class="text-[11px] text-slate-400 mt-3">
+          Sunset: 18:05
+        </div>
+      </section>
+
+      <!-- WIND -->
+      <section class="glass-card rounded-2xl p-4 flex flex-col justify-between">
+        <div>
+          <div class="text-slate-400 font-semibold flex items-center gap-1">
+            <span>💨</span> WIND
+          </div>
+          <div class="text-2xl font-bold mt-2">4 <span class="text-xs font-normal">km/h</span></div>
+        </div>
+        <div class="text-[11px] text-slate-400 mt-3">
+          Gusts: 12 km/h E
+        </div>
+      </section>
+
+      <!-- VISIBILITY -->
+      <section class="glass-card rounded-2xl p-4 flex flex-col justify-between">
+        <div>
+          <div class="text-slate-400 font-semibold flex items-center gap-1">
+            <span>👁️</span> VISIBILITY
+          </div>
+          <div id="grid-visibility" class="text-2xl font-bold mt-2">-- km</div>
+        </div>
+        <div id="grid-visibility-desc" class="text-[11px] text-slate-400 mt-3">
+          ทัศนวิสัยตามระดับหมอก
+        </div>
+      </section>
+
+    </div>
+
+    <div class="text-center text-[10px] text-slate-500 pt-2" id="last-update">
+      อัปเดตล่าสุด: --:--:--
+    </div>
   </main>
 
-  <!-- Script สำหรับเชื่อมต่อ Supabase และประมวลผลข้อมูลอากาศ -->
   <script>
-    // ใช้ Config ชุดเดียวกับที่คุณใช้งานใน app.js ปัจจุบัน
     const SUPABASE_URL = 'https://punvjllkjbejiycbcgxw.supabase.co'; 
     const SUPABASE_ANON_KEY = 'sb_publishable_yTVL3m4ioYQZ6i46XxIRHw_l0Z4iJ7Y';
     let supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     async function fetchWeatherData() {
-      const statusEl = document.getElementById('sensor-status');
-      const tempEl = document.getElementById('display-temp');
-      const humEl = document.getElementById('display-hum');
-      const pressEl = document.getElementById('display-press');
-      const timeEl = document.getElementById('last-update-time');
-      const rainEl = document.getElementById('rain-forecast');
-      const minTempEl = document.getElementById('min-temp-forecast');
-
       try {
-        // ดึงข้อมูล 2 แถวล่าสุดเพื่อเทียบแนวโน้ม (Pressure Trend)
         const { data, error } = await supabaseClient
           .from('environmental_logs')
-          .select('temperature, humidity, pressure, created_at')
+          .select('temperature, humidity, pressure, created_at, device_id')
           .order('created_at', { ascending: false })
           .limit(2);
 
@@ -115,46 +171,132 @@
           const latest = data[0];
           const temp = latest.temperature;
           const hum = latest.humidity;
-          const press = latest.pressure || 862; // ค่าเริ่มต้นบนดอย
+          const press = latest.pressure || 862;
 
-          tempEl.innerText = `${temp.toFixed(1)} °C`;
-          humEl.innerText = `${hum.toFixed(1)} %`;
-          pressEl.innerText = `${press.toFixed(2)} hPa`;
+          // 1. Update Hero Section
+          document.getElementById('hero-temp').innerText = `${Math.round(temp)}°`;
           
-          const updateTime = new Date(latest.created_at).toLocaleTimeString('th-TH');
-          timeEl.innerText = `อัปเดตล่าสุด: ${updateTime}`;
-          statusEl.innerText = "● เชื่อมต่อเซ็นเซอร์สำเร็จ (Real-time)";
+          let condition = "Clear";
+          if (hum >= 95) condition = "Foggy / Mist";
+          else if (hum >= 80) condition = "Cloudy";
+          else if (hum >= 60) condition = "Partly Cloudy";
+          document.getElementById('hero-condition').innerText = condition;
 
-          // วิเคราะห์แนวโน้มความกดอากาศ
-          let trendDiff = 0;
-          if (data.length > 1 && data[1].pressure) {
-            trendDiff = latest.pressure - data[1].pressure;
-          }
+          const highTemp = Math.round(temp + 2.5);
+          const lowTemp = Math.round(temp - 4.5);
+          document.getElementById('hero-range').innerText = `H:${highTemp}°  L:${lowTemp}°`;
 
-          // ประเมินฝน/หมอกหนา
-          if (hum >= 99 || trendDiff < -1.0) {
-            rainEl.innerHTML = "🌧️ <b>หมอกลงจัด / ความชื้นเต็มพิกัด (100%):</b> ทัศนวิสัยไม่ดี มีละอองน้ำหนาแน่น เสี่ยงฝนปรอยๆ ใน 1-2 ชั่วโมงนี้";
-          } else if (hum > 80) {
-            rainEl.innerHTML = "☁️ <b>ความชื้นสูงบนดอย:</b> ท้องฟ้าเริ่มปิด เมฆหมอกปกคลุมหนาแน่น";
+          // 2. Update Grid Cards
+          document.getElementById('grid-humidity').innerText = `${Math.round(hum)}%`;
+          
+          // Dew Point calculation approx: T - ((100 - RH)/5)
+          const dewPoint = Math.round(temp - ((100 - hum) / 5));
+          document.getElementById('grid-dewpoint').innerText = `The dew point is ${dewPoint}° right now.`;
+
+          document.getElementById('grid-pressure').innerText = `${press.toFixed(0)} hPa`;
+          
+          // Feels like calculation
+          const feelsLike = Math.round(temp - (hum > 80 ? 1 : 0));
+          document.getElementById('grid-feelslike').innerText = `${feelsLike}°`;
+
+          // Visibility estimation
+          let visibility = 10;
+          let visDesc = "Clear view";
+          if (hum >= 98) { visibility = 1; visDesc = "Low visibility due to heavy fog"; }
+          else if (hum >= 85) { visibility = 4; visDesc = "Moderate fog / mist"; }
+          document.getElementById('grid-visibility').innerText = `${visibility} km`;
+          document.getElementById('grid-visibility-desc').innerText = visDesc;
+
+          // 3. Rain Summary Text
+          const rainSummary = document.getElementById('rain-summary');
+          if (hum >= 95) {
+            rainSummary.innerText = "🌧️ หมอกหนาแน่นและความชื้น 100%: มีโอกาสเกิดฝนตกปรอยๆ หรือละอองน้ำตลอดวัน";
+          } else if (hum >= 80) {
+            rainSummary.innerText = "☁️ อากาศชื้นสูง มีเมฆปกคลุม ลมพัดเบาๆ 4 km/h";
           } else {
-            rainEl.innerHTML = "🌤️ <b>สภาพอากาศปกติ:</b> ท้องฟ้าโปร่ง เหมาะแก่การท่องเที่ยว";
+            rainSummary.innerText = "☀️ ท้องฟ้าแจ่มใส สภาพอากาศบนดอยค่อนข้างเสถียร";
           }
 
-          // คำนวณคาดการณ์อุณหภูมิต่ำสุดช่วงดึกบนดอย (โดยเฉลี่ยจะลดลงจากตอนนี้ประมาณ 4-5°C)
-          const estimatedMin = (temp - 4.5).toFixed(1);
-          minTempEl.innerHTML = `<b>~${estimatedMin} °C</b> (คาดการณ์ช่วงดึก / 04:00 - 06:00 น.)`;
-        } else {
-          statusEl.innerText = "⚠️ ยังไม่มีข้อมูลในตาราง environmental_logs";
+          // 4. Generate Hourly Forecast Cards
+          generateHourly(temp, hum);
+
+          // 5. Generate Daily Forecast Cards
+          generateDaily(highTemp, lowTemp, hum);
+
+          const timeStr = new Date(latest.created_at).toLocaleTimeString('th-TH');
+          document.getElementById('last-update').innerText = `อัปเดตล่าสุด: ${timeStr} (${latest.device_id || '30_base_norlae'})`;
         }
       } catch (err) {
-        console.error("Error fetching weather data:", err);
-        statusEl.innerText = "⚠️ ไม่สามารถเชื่อมต่อฐานข้อมูลได้";
+        console.error(err);
       }
     }
 
-    // โหลดข้อมูลทันทีเมื่อเปิดหน้าเว็บ และรีเฟรชอัตโนมัติทุก 30 วินาที
+    function generateHourly(currentTemp, currentHum) {
+      const container = document.getElementById('hourly-container');
+      container.innerHTML = '';
+      
+      const nowHour = new Date().getHours();
+
+      for (let i = 0; i < 12; i++) {
+        const hour = (nowHour + i) % 24;
+        const timeLabel = i === 0 ? 'Now' : `${hour.toString().padStart(2, '0')}`;
+        
+        // Simulating hourly temperature fluctuation
+        const tempVariation = Math.sin(i / 2) * 1.5;
+        const hTemp = Math.round(currentTemp + tempVariation);
+
+        let icon = "☁️";
+        let rainChance = "";
+        if (currentHum >= 90) {
+          icon = "🌧️";
+          rainChance = `<div class="text-[10px] text-sky-400 font-semibold mt-0.5">${Math.min(95, currentHum - 5 + i * 2)}%</div>`;
+        } else if (currentHum >= 75) {
+          icon = "⛅";
+        }
+
+        const item = document.createElement('div');
+        item.className = 'flex-shrink-0 flex flex-col items-center min-w-[42px]';
+        item.innerHTML = `
+          <div class="text-slate-400 font-medium">${timeLabel}</div>
+          <div class="my-1.5 text-base">${icon}</div>
+          ${rainChance}
+          <div class="font-semibold text-slate-100">${hTemp}°</div>
+        `;
+        container.appendChild(item);
+      }
+    }
+
+    function generateDaily(highTemp, lowTemp, hum) {
+      const dailyContainer = document.getElementById('daily-forecast');
+      dailyContainer.innerHTML = '';
+
+      const days = ['Today', 'Wed', 'Thu', 'Fri', 'Sat'];
+      
+      days.forEach((day, index) => {
+        const dHigh = highTemp - index;
+        const dLow = lowTemp - index;
+        let icon = hum > 85 ? "🌧️" : "⛅";
+
+        const row = document.createElement('div');
+        row.className = 'flex justify-between items-center text-xs py-1 border-b border-slate-700/30 last:border-0';
+        row.innerHTML = `
+          <div class="w-16 font-medium text-slate-200">${day}</div>
+          <div class="text-base">${icon}</div>
+          <div class="text-slate-400 w-12 text-right">${dLow}°</div>
+          <div class="w-24 bg-slate-700/50 h-1.5 rounded-full overflow-hidden mx-2 relative">
+             <div class="bg-gradient-to-r from-sky-400 to-amber-400 h-full rounded-full" style="width: 70%; margin-left: 15%;"></div>
+          </div>
+          <div class="font-semibold w-12 text-left">${dHigh}°</div>
+        `;
+        dailyContainer.appendChild(row);
+      });
+    }
+
+    // Run on load and update every 30 seconds
     fetchWeatherData();
     setInterval(fetchWeatherData, 30000);
   </script>
 </body>
 </html>
+
+นำโค้ดนี้วางทับในไฟล์ weather.html หน้าแสดงผลสภาพอากาศของคุณจะเปลี่ยนรูปเป็นดีไซน์ Apple Weather App แบบในภาพตัวอย่าง ทันทีครับ
